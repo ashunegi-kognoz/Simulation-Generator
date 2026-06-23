@@ -17,7 +17,6 @@
 - [ ] Update `render.yaml` CORS_ALLOW_ORIGINS with your Vercel domain
 - [ ] Update `frontend/.env.production`:
   - [ ] `VITE_API_BASE_URL` → Your Render backend URL
-  - [ ] `VITE_TENANT_ID` → UUID from step 4.1
 - [ ] Create GitHub repository
 - [ ] Initialize git and push code
 
@@ -39,13 +38,13 @@
 - [ ] Import GitHub repository
 - [ ] Verify build command: `npm run build`
 - [ ] Verify output directory: `dist`
-- [ ] Add environment variables (VITE_API_BASE_URL, VITE_TENANT_ID)
+- [ ] Add environment variables (VITE_API_BASE_URL, VITE_API_BACKEND)
 - [ ] Deploy and monitor
 - [ ] Copy frontend URL
 
 ## Integration & Testing
 
-- [ ] Create tenant in production database
+- [ ] Create first workspace user via frontend register flow
 - [ ] Update Render CORS_ALLOW_ORIGINS with Vercel domain
 - [ ] Re-deploy backend (redeploy from Render dashboard)
 - [ ] Test frontend loads at Vercel URL

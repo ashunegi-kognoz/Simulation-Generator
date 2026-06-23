@@ -37,7 +37,7 @@ git push -u origin main
 Replace placeholders in these files with your actual URLs:
 
 - **render.yaml**: Update `CORS_ALLOW_ORIGINS` with your Vercel domain (will be `your-project.vercel.app`)
-- **frontend/.env.production**: Update `VITE_API_BASE_URL` and `VITE_TENANT_ID` after backend deployment
+- **frontend/.env.production**: Update `VITE_API_BASE_URL` after backend deployment
 
 ---
 
@@ -60,10 +60,10 @@ Replace placeholders in these files with your actual URLs:
 In the Render dashboard, click **"Environment"** and add:
 
 ```
-DATABASE_URL=postgresql://allocation_room_db_user:YOUR_PASSWORD@dpg-xxxxx-a/allocation_room_db
+DATABASE_URL=postgresql+asyncpg://allocation_room_db_user:YOUR_PASSWORD@dpg-xxxxx-a/allocation_room_db
 APP_ENV=production
-LLM_PROVIDER=mock
-CORS_ALLOW_ORIGINS=localhost:3000,your-vercel-domain.vercel.app
+LLM_PROVIDER=openai
+CORS_ALLOW_ORIGINS=https://your-vercel-domain.vercel.app,http://localhost:3000
 MAX_CONCURRENCY=12
 MAX_REVISIONS=2
 RATE_LIMIT_PER_MINUTE=120
@@ -86,7 +86,7 @@ https://allocation-room-api.onrender.com
 
 ```bash
 curl https://allocation-room-api.onrender.com/health
-# Should return: {"status": "ok", "provider": "mock"}
+# Should return: {"status": "ok", "provider": "openai"}
 ```
 
 ---
@@ -113,12 +113,9 @@ If not, set them manually.
 In the Vercel dashboard, go to **"Settings"** → **"Environment Variables"** and add:
 
 ```
-VITE_API_BASE_URL=https://allocation-room-api.onrender.com/api
+VITE_API_BASE_URL=https://allocation-room-api.onrender.com
 VITE_API_BACKEND=https://allocation-room-api.onrender.com
-VITE_TENANT_ID=YOUR_TENANT_UUID_HERE
 ```
-
-(You'll need to get your tenant UUID from the backend)
 
 ### 3.4 Deploy
 
@@ -131,28 +128,20 @@ https://allocation-room.vercel.app
 
 ## Phase 4: Integration & Testing
 
-### 4.1 Create Tenant in Production
+### 4.1 Create First Workspace User
 
-Once the backend is deployed, provision a tenant:
+The auth flow creates a tenant automatically on registration:
 
-```bash
-# SSH into Render (from Render dashboard) or use curl to call an admin endpoint
-# For now, create one locally and export the UUID to use
-
-# Locally:
-cd allocation-room
-source .venv/bin/activate
-python -m scripts.create_tenant "Your Company Name"
-# Copy the printed UUID
-```
-
-Add this UUID to your Vercel environment variables as `VITE_TENANT_ID`.
+1. Open your Vercel frontend URL
+2. Click **Create workspace**
+3. Register with email/password
+4. Use that same account to author simulations
 
 ### 4.2 Update CORS in Backend
 
 In Render dashboard, update `CORS_ALLOW_ORIGINS` to include your Vercel domain:
 ```
-localhost:3000,your-vercel-domain.vercel.app
+https://your-vercel-domain.vercel.app,http://localhost:3000
 ```
 
 ### 4.3 Test End-to-End
@@ -182,7 +171,7 @@ Check Render logs:
 Check browser console:
 - CORS error → backend's `CORS_ALLOW_ORIGINS` doesn't include your Vercel domain
 - API 404 → `VITE_API_BASE_URL` points to wrong backend URL
-- Tenant not found → `VITE_TENANT_ID` is incorrect or not set
+- 401/403 → sign in again, or verify frontend points to the correct backend
 
 ### Migrations Didn't Run
 
@@ -199,19 +188,18 @@ alembic upgrade head
 
 | Variable | Example | Purpose |
 |----------|---------|---------|
-| `DATABASE_URL` | `postgresql://...` | Postgres connection string |
+| `DATABASE_URL` | `postgresql+asyncpg://...` | Postgres connection string |
 | `APP_ENV` | `production` | Enable rate limiting & worker |
-| `LLM_PROVIDER` | `mock` or `openai` | Which LLM backend to use |
-| `CORS_ALLOW_ORIGINS` | `domain.vercel.app` | Allowed browser origins |
+| `LLM_PROVIDER` | `openai` or `mock` | Which LLM backend to use |
+| `CORS_ALLOW_ORIGINS` | `https://domain.vercel.app,http://localhost:3000` | Allowed browser origins |
 | `MAX_CONCURRENCY` | `12` | LLM call parallelism |
 
 ### Frontend (Vercel environment variables)
 
 | Variable | Example | Purpose |
 |----------|---------|---------|
-| `VITE_API_BASE_URL` | `https://api.onrender.com/api` | Frontend's API endpoint |
+| `VITE_API_BASE_URL` | `https://api.onrender.com` | Frontend's API endpoint |
 | `VITE_API_BACKEND` | `https://api.onrender.com` | Dev proxy target |
-| `VITE_TENANT_ID` | UUID | Which tenant to author under |
 
 ---
 

@@ -52,10 +52,12 @@ function resizeDimensions(dims: Dimension[], count: number): Dimension[] {
 
 export function AuthoringConsole({
   token,
+  tenantId,
   onOpenDetail,
   onBack,
 }: {
   token: string;
+  tenantId: string;
   onOpenDetail: (simulationId: string) => void;
   onBack: () => void;
 }) {
@@ -91,8 +93,8 @@ export function AuthoringConsole({
   }
 
   async function generate() {
-    if (!token) {
-      setError("Set a tenant UUID in the top bar first.");
+    if (!token || !tenantId) {
+      setError("Your session is missing tenant information. Please sign in again.");
       return;
     }
     setBusy(true);
@@ -100,7 +102,7 @@ export function AuthoringConsole({
     setFlagged(null);
     setStatus(null);
     try {
-      const input: SimulationInput = { ...form, tenant_id: token };
+      const input: SimulationInput = { ...form, tenant_id: tenantId };
       const idem = `author-${crypto.randomUUID()}`;
       const created = await api.createSimulation(input, token, idem);
       setSimulationId(created.simulation_id);

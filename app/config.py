@@ -10,6 +10,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -64,6 +65,32 @@ class Settings(BaseSettings):
     # Override JWT_SECRET in production. HS256 is signed with this secret.
     jwt_secret: str = "dev-insecure-change-me-please"
     jwt_expire_minutes: int = 60 * 24 * 7  # one week
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        # Accept plain postgresql:// in envs and force asyncpg for runtime.
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return value
+
+    @field_validator("cors_allow_origins", mode="before")
+    @classmethod
+    def _normalize_cors_allow_origins(cls, value: str) -> str:
+        if not isinstance(value, str):
+            return value
+        normalized: list[str] = []
+        for origin in value.split(","):
+            o = origin.strip()
+            if not o:
+                continue
+            if "://" not in o:
+                if o.startswith("localhost") or o.startswith("127.0.0.1"):
+                    o = f"http://{o}"
+                else:
+                    o = f"https://{o}"
+            normalized.append(o)
+        return ",".join(normalized)
 
     @property
     def cors_origin_list(self) -> list[str]:

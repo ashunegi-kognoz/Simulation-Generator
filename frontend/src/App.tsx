@@ -11,20 +11,29 @@ export type View = "dashboard" | "create" | "detail" | "logs";
 
 const AUTH_KEY = "allocation-room.auth";
 
-type Auth = { token: string; email: string };
+type AuthV2 = { token: string; email: string; tenantId: string };
 
-function loadAuth(): Auth | null {
+function loadAuth(): AuthV2 | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(AUTH_KEY);
-    return raw ? (JSON.parse(raw) as Auth) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AuthV2>;
+    if (
+      typeof parsed.token === "string" &&
+      typeof parsed.email === "string" &&
+      typeof parsed.tenantId === "string"
+    ) {
+      return parsed as AuthV2;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 export default function App() {
-  const [auth, setAuth] = useState<Auth | null>(loadAuth);
+  const [auth, setAuth] = useState<AuthV2 | null>(loadAuth);
   const [view, setView] = useState<View>("dashboard");
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -35,7 +44,7 @@ export default function App() {
   }, [auth]);
 
   function onAuthed(res: AuthResponse) {
-    setAuth({ token: res.access_token, email: res.email });
+    setAuth({ token: res.access_token, email: res.email, tenantId: res.tenant_id });
     setView("dashboard");
   }
 
@@ -69,6 +78,7 @@ export default function App() {
         {view === "create" && (
           <AuthoringConsole
             token={auth.token}
+            tenantId={auth.tenantId}
             onOpenDetail={openDetail}
             onBack={() => setView("dashboard")}
           />

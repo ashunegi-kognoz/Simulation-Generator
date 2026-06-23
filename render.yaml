@@ -13,9 +13,9 @@ services:
       - key: APP_ENV
         value: production
       - key: LLM_PROVIDER
-        value: mock
+        value: openai
       - key: CORS_ALLOW_ORIGINS
-        value: localhost:3000,your-vercel-domain.vercel.app
+        value: https://allocation-room.vercel.app,http://localhost:3000
       - key: MAX_CONCURRENCY
         value: "12"
       - key: MAX_REVISIONS
