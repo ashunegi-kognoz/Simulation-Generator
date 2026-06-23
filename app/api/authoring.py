@@ -1,0 +1,136 @@
+"""Authoring API: create simulations, check status, review flagged decisions.
+
+`POST /simulations` is idempotent per `Idempotency-Key` within the tenant. A dev/admin
+`POST /simulations/{id}/run` trigger drains queued jobs synchronously so generation can
+be driven over HTTP (in production the background worker does this).
+"""
+
+from __future__ import annotations
+
+import uuid
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api import deps
+from app.api.schemas import CreateSimulationResponse, ReviewRequest
+from app.jobs.runner import run_pending
+from app.llm.provider import LLMProvider
+from app.services import generation_service
+from app.schemas.input import SimulationInput
+
+router = APIRouter(prefix="/simulations", tags=["authoring"])
+
+
+@router.post("", response_model=CreateSimulationResponse, status_code=202)
+async def create_simulation(
+    payload: SimulationInput,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+    idem: str | None = Depends(deps.idempotency_key),
+) -> CreateSimulationResponse:
+    sim, job = await generation_service.create_simulation(
+        db, tenant, payload.model_dump(), idempotency_key=idem
+    )
+    await db.commit()
+    return CreateSimulationResponse(simulation_id=str(sim.id), job_id=str(job.id), status=sim.status)
+
+
+@router.get("")
+async def list_simulations(
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    return {"simulations": await generation_service.list_simulations(db, tenant)}
+
+
+@router.get("/{simulation_id}")
+async def get_simulation(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    sim = await generation_service.get_simulation(db, tenant, simulation_id)
+    version = await generation_service.latest_version(db, simulation_id)
+    return {
+        "id": str(sim.id),
+        "name": sim.name,
+        "status": sim.status,
+        "version": version.version if version else None,
+        "simulation_version_id": str(version.id) if version else None,
+        "created_at": sim.created_at,
+        "input": sim.input_jsonb,
+    }
+
+
+@router.get("/{simulation_id}/status")
+async def get_status(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    return await generation_service.get_status(db, tenant, simulation_id)
+
+
+@router.get("/{simulation_id}/review")
+async def list_flagged(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    flagged = await generation_service.list_flagged_decisions(db, tenant, simulation_id)
+    return {"flagged": flagged, "count": len(flagged)}
+
+
+@router.post("/{simulation_id}/review")
+async def submit_review(
+    simulation_id: uuid.UUID,
+    body: ReviewRequest,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    result = await generation_service.record_review(
+        db, tenant, simulation_id, body.reviewer, body.action, body.notes
+    )
+    await db.commit()
+    return result
+
+
+@router.get("/{simulation_id}/content")
+async def get_content(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    return await generation_service.get_content(db, tenant, simulation_id)
+
+
+@router.get("/{simulation_id}/logs")
+async def get_logs(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    return await generation_service.get_logs(db, tenant, simulation_id)
+
+
+@router.get("/{simulation_id}/mapping")
+async def get_mapping(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    return await generation_service.get_mapping(db, tenant, simulation_id)
+
+
+@router.post("/{simulation_id}/run")
+async def run_jobs(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+    provider: LLMProvider = Depends(deps.llm_provider),
+) -> dict:
+    # Confirms tenant ownership before draining the queue.
+    await generation_service.get_simulation(db, tenant, simulation_id)
+    handled = await run_pending(db, provider)
+    return await generation_service.get_status(db, tenant, simulation_id) | {"jobs_handled": handled}
