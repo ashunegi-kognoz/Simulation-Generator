@@ -8,178 +8,194 @@ verbatim from the brief; only the version constants are added here.
 from __future__ import annotations
 
 # --- versions ---
-FORGE_PROMPT_V = "forge.v1"
-WORLD_PROMPT_V = "world.v1"
-COMMON_PROMPT_V = "common.v1"
-ROLE_PROMPT_V = "role.v1"
-TEAM_PROMPT_V = "team.v1"
-BALANCE_PROMPT_V = "balance.v1"
-NAIVE_PROMPT_V = "naive.v1"
-CONSISTENCY_PROMPT_V = "consistency.v1"
-DEBRIEF_PROMPT_V = "debrief.v1"
+FORGE_PROMPT_V = "forge.v2"
+WORLD_PROMPT_V = "world.v2"
+COMMON_PROMPT_V = "common.v2"
+ROLE_PROMPT_V = "role.v2"
+TEAM_PROMPT_V = "team.v2"
+BALANCE_PROMPT_V = "balance.v2"
+NAIVE_PROMPT_V = "naive.v2"
+CONSISTENCY_PROMPT_V = "consistency.v2"
+DEBRIEF_PROMPT_V = "debrief.v2"
 
 # --- 10.1 DecisionForge (the master prompt) ---
 FORGE_PROMPT = """\
 ROLE
-You are a Senior Executive Simulation Architect. You design realistic, role-authentic executive
-dilemmas that reveal leadership preferences through resource allocation. Every scenario must feel
-like a decision that could land on this specific leader's calendar this quarter.
+You are a Senior Executive Simulation Architect generating executive-grade decisions for a leadership
+simulation. Every decision must feel like a real calendar-level call this quarter.
 
-CONTEXT (provided each call)
-- Narrative bible: shared organizational facts, timeline, named stakeholders, tone.
-- Generation context: de-identified role, function, entity, seniority, KPI trade-offs, development
-  goals, and any prior posture fingerprint. Never invent identity.
-- The single DIMENSION assigned to this decision: MOVE, HOLD, or FRAME.
+OBJECTIVE
+Create dilemma-driven decisions that reveal participant preference through allocation across four
+postures. No option may be obviously correct or obviously weak.
 
-DIMENSION (answer the question this dimension asks)
-- MOVE: commit resources to change the trajectory. Where do we push, and how hard?
-- HOLD: defend or sustain existing capability/commitments. What do we protect, at what cost?
-- FRAME: define, sequence, escalate, or position the problem. How do we define this, and who comes in?
+CONTEXT (always provided)
+- Narrative bible: source of truth for shared facts, numbers, stakeholders, and dates.
+- Generation context: role and KPI trade-offs for one participant or team context.
+- Requested decision dimension(s): MOVE, HOLD, FRAME.
 
-THE FOUR POSTURES (one option each; orthogonal to the dimension)
-Within this single dimension, write four options, each expressing a different posture toward the
-SAME question:
-- Protect: defends current capability, commitments, performance, or mandate.
-- Enable: creates value outside this leader's immediate area of responsibility.
-- Hybrid: pursues protection and enablement together; carries VISIBLE coordination cost. It must
-  read as a real bet with real friction, never the safe compromise.
-- Defer: deliberately postpones to preserve optionality or gather decision-critical information,
-  with a stated rationale and a named trigger. Never "do nothing."
+HARD RULES
+1. Stay strictly inside provided context. Do not invent company identity beyond inputs.
+2. Use concrete numbers, deadlines, and named stakeholders grounded in the bible.
+3. Write one decision question per requested dimension.
+4. For each decision, return exactly four options: Protect, Enable, Hybrid, Defer (one each).
+5. Each option must include: clear action, enterprise consequence, explicit trade-off.
+6. Defer must be a legitimate strategic path with trigger/condition, never avoidance.
+7. Hybrid must include coordination friction or execution complexity, not a safe blend.
+8. Option strength and specificity must be balanced; all four should be defensible to a capable leader.
 
-EACH OPTION MUST CONTAIN
-- A concrete action (a recommendation, not a viewpoint).
-- A consequence that reaches beyond this leader's immediate area.
-- An explicit trade-off (what is given up).
-- Comparable length and specificity across all four (within ~15% word count).
+DIMENSION INTENT
+- MOVE: where to commit resources to shift trajectory.
+- HOLD: what to protect or sustain under pressure.
+- FRAME: how to define, sequence, or escalate the decision.
 
-FORMAT OF EACH OPTION (match the reference density)
-- label: a short imperative headline for the option (for example "Honour the current scope" or
-  "Absorb the redesign and the delay"). No letter, no posture name.
-- content: two to four crisp sentences that state the action, then its enterprise consequence, then
-  the explicit trade-off. Concrete and quantified, grounded in the bible. Write the decision title as
-  a vivid imperative framing of what the leader does, and the question as the specific call they face.
+WRITING STANDARD
+Executive register only: concise, direct, quantified, realistic, mobile-readable.
+Avoid cliches, motivational language, academic tone, and generic filler.
 
-THE NON-NEGOTIABLE BALANCE REQUIREMENT
-No option may dominate. A capable leader must be able to defend allocating significant weight to ANY
-of the four. If one option is obviously superior or obviously weak, the decision fails. Do not hint
-at which posture is "right."
-
-EDITORIAL VOICE
-Direct, quantified, concise, present-tense. Use specific numbers, real timelines, and named
-stakeholders from the bible. Ground every number in the bible. Forbidden: corporate cheerleading,
-motivational or academic register, generic cliches, unnecessary jargon, emojis, em dashes. Write as
-if a senior leader will read it on a phone the evening before the simulation.
-
-INTERACTION MODEL (do not state to the participant)
-The participant will allocate 100 units across these four options. Categories remain hidden. Do NOT
-assign A/B/C/D positions; output options tagged by posture only. Positions are randomized later.
-
-OUTPUT
-Return ONLY valid JSON matching the decision schema: for each requested dimension, a title, a
-question, and four options each with posture, label, action, consequence, and trade-off. No prose,
-no markdown, no preamble.
+OUTPUT CONTRACT
+Return only JSON matching the decision schema:
+- decision_number, dimension, title, question
+- options[] with posture, label, content
+Do not output markdown, explanations, or extra keys.
 """
 
 # --- 10.2 WorldArchitect ---
 WORLD_PROMPT = """\
-Build the shared world for this simulation, grounded in business_context and company_name, mapped
-onto the fictional Apex Horizon Group. Produce: organizational facts; the quarter timeline including
-the inciting event and board/earnings dates; a roster of named stakeholders each with a motive and a
-competing interest; the specific numbers that will be referenced across multiple roles (these must
-stay consistent); and a tone guide. Keep the enterprise fictional. Return JSON only matching the
-bible schema.
+Build the shared enterprise world for this simulation using runtime inputs only.
+
+SOURCE OF TRUTH
+- company_name and business_context define the enterprise reality.
+- Do not hardcode or reuse any default company (for example Apex Horizon).
+- Keep the enterprise fictional but internally consistent.
+
+REQUIRED OUTPUT
+Return JSON matching the narrative bible schema with:
+- org_facts: operating model, mandate, constraints, strategic pressure
+- timeline: quarter sequence with inciting event, key deadlines, board/investor moments
+- characters: named stakeholders with role, motive, competing_interest
+- shared_facts: quantified anchors reused consistently across participants/teams
+- tone_guide: concise executive writing direction
+
+QUALITY BAR
+- Include explicit numbers, dates, and dependencies.
+- Ensure facts can support realistic role-level decisions later.
+- No generic filler or motivational language.
+- No markdown, no prose outside JSON.
 """
 
 # --- 10.3 CommonContent ---
 COMMON_PROMPT = """\
-Using the bible and subject_matter, produce these pieces in a crisp executive register, each rich,
-specific, and grounded in the bible's numbers. Match the density of a real executive briefing.
+Using the bible and subject_matter, produce common simulation content in strict executive style.
+Return JSON only matching CommonData.
 
-allocation_room_data (~200 words): frame the decision space. Open with a one-line framing such as
-"One quarter. Three decisions." Include a "THE MOMENT WE ARE IN" passage naming the inciting event,
-the binding constraint, and the capital/resource gap. End with three or four short labelled data
-points (for example "Capital envelope vs demand USD 4.2B vs USD 5.94B").
+REQUIREMENTS BY FIELD
+- allocation_room_data: frame constrained decision space with enterprise stakes, scarce resources,
+  urgency, and quantified trade-offs.
+- business_landscape: concise enterprise reality (mandate, constraints, risk, urgency, consequences).
+- business_priorities: exactly five shared priorities, distinct and decision-relevant.
+- crisis_data: immediate trigger event with timeline pressure and stakeholder reactions.
+- reflection_board_helping_data: concise reflection guidance linking allocation patterns to leadership
+  tendencies and organizational implications.
 
-business_landscape (~200 words): mandate, urgency, constraints, and enterprise stakes.
-
-business_priorities: EXACTLY five distinct enterprise priorities shared by all participants. Write
-each as "PRIORITY 0N · <SHORT TITLE>" followed by two to four sentences, and where useful a short
-labelled data card of grounded numbers.
-
-crisis_data (~180 words): the inciting crisis written as a scene that just landed (for example "The
-decision just landed. On a Tuesday morning, ..."). Name the trigger, the rating-agency or regulator
-reaction, and the leadership message demanding positions within a deadline. Close with a short
-"LATEST DEVELOPMENT" list of grounded facts. This is shared scene-setting shown to everyone before
-they allocate.
-
-reflection_board_helping_data (~200 words): describe the four allocation stances by name, each with a
-Value line and a Risk line. Use these names and meanings: Reposition (move within your mandate;
-recalibrate inside existing boundaries); Exploitation (hold and defend your function's current
-position); Exploration (move beyond your mandate; absorb near-term cost so the enterprise can pursue
-broader upside); Transfer (elevate the decision to the authority best positioned to weigh it).
-
-Ground all numbers in the bible. No em dashes, no emojis. Return JSON only.
+GLOBAL RULES
+- Every important claim must be grounded in bible facts.
+- Use specific numbers, realistic timelines, named stakeholders, explicit consequences.
+- Keep language concise, direct, and decision-oriented.
+- Avoid cliches, cheerleading, and generic abstractions.
 """
 
 # --- 10.4 RoleSmith ---
 ROLE_PROMPT = """\
-Using the bible, this role_overview, and its kpi_critical_tradeoff, produce: role_data (title, entity,
-scope, reporting line) and situation_data (~200 words). Begin situation_data with a "YOUR SITUATION"
-line, then the held decision, competing priorities, consequences, an urgency source, and a named
-dependent stakeholder drawn from the bible. Close with a short "YOUR DATA" block of three to four
-grounded, labelled numbers specific to this role. Order it for tension: standing tension, inciting
-pressure, the squeeze, the stakeholder pull, the unresolved. No em dashes, no emojis. Return JSON
-only.
+Using bible + role_overview + kpi_critical_tradeoff, return JSON only with role_data and situation_data.
+
+ROLE STANDARD
+- role_data must reflect role title, entity, scope, reporting line, and authority boundary.
+
+SITUATION STANDARD
+- Begin with "YOUR SITUATION".
+- Present one authentic role-owned executive decision under real constraints.
+- Include competing priorities, urgency source, key dependency, and enterprise consequences.
+- Anchor with concrete data (numbers, dates, named stakeholders) from the bible.
+- End with a short "YOUR DATA" block (3-4 labelled quantitative anchors).
+
+QUALITY RULES
+- No teaching tone; this is live decision context, not explanation.
+- No generic narrative. Make tension operational and specific.
+- Keep concise, direct, and decision-focused.
 """
 
 # --- 10.5 TeamScenario and MemberSituation ---
 TEAM_PROMPT = """\
-Team scenario: using the bible, produce a shared ~200-word scenario that brings this team together
-around one enterprise tension; open with a short framing of what the cluster must now decide as one
-body. Member situation: for each member, using the team scenario, the member's role_overview and kpi
-trade-off, produce a ~200-word situation that begins "YOUR SITUATION" and frames the same scenario
-from that role. The team shares ONE decision board, so do not imply members face different options.
-Keep all shared facts consistent with the bible and the scenario. No em dashes, no emojis. Return
-JSON only.
+Generate team-round content from the bible.
+
+OUTPUT
+- scenario_data: one shared enterprise dilemma the team must resolve together.
+- members[*].situation_data: role-specific view of the same shared dilemma.
+
+HARD RULES
+- One shared decision board for the team. Do not imply different option sets by member.
+- Keep shared facts, numbers, dates, and stakeholders fully consistent.
+- Each member situation must begin with "YOUR SITUATION" and reflect that role's accountability,
+  trade-offs, and dependencies within the shared scenario.
+- Keep writing concise, quantified, and realistic.
+
+Return JSON only matching the expected team/member schema.
 """
 
 # --- 10.6 BalanceCritic ---
 BALANCE_PROMPT = """\
-You judge a single decision without being told which option is intended to be best. Score each of the
-four options for surface attractiveness 0 to 100 with posture tags hidden. Apply: legitimacy (could a
-capable leader reasonably weight this option?), visibility (would a senior leader notice if it were
-removed?), and the Defer test (Defer must be a real strategic posture, not avoidance). Return JSON:
-passed, naive_scores by option, max_minus_min, and revision notes. Fail if max_minus_min exceeds 25
-or any option fails legitimacy; give specific instructions to rebalance.
+You are a blind balance critic for one decision.
+
+TASK
+- Score each of four hidden-posture options for surface attractiveness (0-100).
+- Judge on: legitimacy, strategic visibility, consequence realism, and trade-off quality.
+- Apply a strict Defer test: deferral must preserve optionality with clear trigger, not avoidance.
+
+PASS/FAIL
+- Fail if spread (max_minus_min) > 25.
+- Fail if any option is not reasonably defensible by a capable leader.
+- On fail, provide concrete revision notes to rebalance without making options uniform or generic.
+
+Return JSON only with: passed, naive_scores, max_minus_min, notes.
 """
 
 # DECISION: the brief defines a separate NaivePicker stage (signature 8.6) but does
 # not give it a verbatim prompt. We add a minimal, on-spec instruction consistent
 # with 10.6 (score attractiveness with posture tags hidden).
 NAIVE_PROMPT = """\
-You score the surface attractiveness of four executive options from 0 to 100. You are not told which
-option is intended to be best and posture categories are hidden from you. Judge only how appealing
-each option looks on its face to a capable senior leader. Return JSON with a score for each option.
-No commentary.
+Score four hidden-posture executive options for immediate surface attractiveness (0-100).
+Judge only first-order appeal to a capable senior leader under time pressure.
+Do not infer intended correct answer. Return JSON only with scores. No commentary.
 """
 
 # DECISION: the ConsistencyAuditor (8.3 / 8.6) has no verbatim prompt in the brief.
 # We add an on-spec instruction: reconcile numbers across roles against the bible.
 CONSISTENCY_PROMPT = """\
-You check a generated simulation for internal contradictions. Using the narrative bible as the source
-of truth, verify that the numbers, dates, named stakeholders, and shared facts referenced across roles
-and decisions reconcile. List each contradiction as a short, specific statement. If everything
-reconciles, return an empty list. Return JSON only.
+Check generated simulation content for internal contradictions against the narrative bible.
+
+Verify consistency across:
+- numbers and units
+- dates, deadlines, and sequence dependencies
+- stakeholder names, roles, and motives
+- shared enterprise facts reused in role/team content
+- decision framing versus stated business priorities and constraints
+
+Return JSON only: contradictions (list of short, specific findings). Return an empty list when clean.
 """
 
 # --- 10.7 DebriefWriter ---
 DEBRIEF_PROMPT = """\
-You receive a posture fingerprint and the participant's actual allocations. Write a debrief in which
-every claim cites the decision numbers that support it. Sections: what you did, what it suggests
-(construct language), the tension you navigated, the blind spot (a posture you under-funded, named
-from the data), and the real decision on your desk. Never invent allocations. Never use pass/fail or
-scoring language. Tie the blind spot to specific under-funded postures in this participant data. No em
-dashes, no emojis. Return JSON only matching the debrief schema.
+Write an evidence-based executive debrief from posture fingerprint + actual allocations.
+
+RULES
+- Every interpretation must be traceable to provided participant data.
+- Cite supporting decision numbers for each major claim.
+- Never invent allocations or outcomes.
+- Use constructive language, never pass/fail judgment.
+- Name the blind spot as an under-funded posture supported by data.
+- Keep concise, practical, and transfer-oriented.
+
+Return JSON only matching the debrief schema.
 """
 
 PROMPT_VERSIONS: dict[str, str] = {
