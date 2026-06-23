@@ -194,6 +194,10 @@ async def process_job(session: AsyncSession, job: Job, provider: LLMProvider) ->
 
         checkpoint = DbCheckpointer(sim.id)
         await checkpoint.hydrate(session)
+        # Important for hosted Postgres poolers (e.g. Neon/Render):
+        # release the DB connection before long-running LLM generation so an
+        # idle checked-out connection is not closed mid-job.
+        await session.commit()
         sim_out, audit = await generate_with_audit(spec, provider, checkpoint)
         await checkpoint.flush(session)
 
