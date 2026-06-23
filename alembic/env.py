@@ -46,14 +46,21 @@ def do_run_migrations(connection: Connection) -> None:
         context.run_migrations()
 
 
-async def run_migrations_online() -> None:
-    connectable = create_async_engine(_database_url(), future=True)
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-    await connectable.dispose()
+def run_migrations_online() -> None:
+    from sqlalchemy import create_engine
+
+    db_url = _database_url()
+    # Convert async driver URL to sync for migrations
+    if db_url.startswith("postgresql+asyncpg://"):
+        db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+
+    connectable = create_engine(db_url, future=True)
+    with connectable.connect() as connection:
+        connection.run_sync(do_run_migrations)
+    connectable.dispose()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    run_migrations_online()
