@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -70,9 +71,35 @@ class Settings(BaseSettings):
     @classmethod
     def _normalize_database_url(cls, value: str) -> str:
         # Accept plain postgresql:// in envs and force asyncpg for runtime.
-        if isinstance(value, str) and value.startswith("postgresql://"):
-            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return value
+        # Also translate psycopg-style SSL query args to asyncpg-compatible ones.
+        if not isinstance(value, str):
+            return value
+
+        url = value
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if not url.startswith("postgresql+asyncpg://"):
+            return url
+
+        parsed = urlsplit(url)
+        query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+        query_map = {k: v for k, v in query_pairs}
+
+        sslmode = query_map.pop("sslmode", None)
+        if sslmode is not None and "ssl" not in query_map:
+            # asyncpg expects "ssl", not psycopg's "sslmode".
+            if sslmode.lower() in {"disable", "allow", "prefer"}:
+                query_map["ssl"] = "false"
+            else:
+                query_map["ssl"] = "require"
+
+        # psycopg-specific; asyncpg does not accept this query arg.
+        query_map.pop("channel_binding", None)
+
+        new_query = urlencode(query_map)
+        return urlunsplit(
+            (parsed.scheme, parsed.netloc, parsed.path, new_query, parsed.fragment)
+        )
 
     @field_validator("cors_allow_origins", mode="before")
     @classmethod
