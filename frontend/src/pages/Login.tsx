@@ -90,7 +90,7 @@ export function Login({ onAuthed }: { onAuthed: (auth: AuthResponse) => void }) 
             </button>
           </div>
 
-          <div className="mt-4 text-center text-sm text-muted">
+          {/* <div className="mt-4 text-center text-sm text-muted">
             {mode === "login" ? "No account yet?" : "Already have an account?"}{" "}
             <button
               className="font-medium text-petrol hover:text-petrol-hover"
@@ -101,7 +101,7 @@ export function Login({ onAuthed }: { onAuthed: (auth: AuthResponse) => void }) 
             >
               {mode === "login" ? "Create one" : "Sign in"}
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
