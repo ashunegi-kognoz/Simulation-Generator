@@ -95,7 +95,7 @@ export function Dashboard({
                 <tr className="border-b border-line text-left">
                   <th className="py-2.5 pr-3 font-medium text-muted">Simulation name</th>
                   <th className="py-2.5 pr-3 font-medium text-muted">Date created</th>
-                  <th className="py-2.5 pr-3 text-right font-medium text-muted">Total pax</th>
+                  <th className="py-2.5 pr-3 text-right font-medium text-muted">Total Participants</th>
                   <th className="py-2.5 pr-3 text-right font-medium text-muted">Rounds</th>
                   <th className="py-2.5 pl-3 text-right font-medium text-muted">Status</th>
                 </tr>
@@ -109,7 +109,7 @@ export function Dashboard({
                   >
                     <td className="py-3 pr-3">
                       <div className="font-medium text-ink">{s.name}</div>
-                      <div className="num text-xs text-faint">{s.id.split("-")[0]}…</div>
+                      {/* <div className="num text-xs text-faint">{s.id.split("-")[0]}…</div> */}
                     </td>
                     <td className="py-3 pr-3 text-muted">{fmtDate(s.created_at)}</td>
                     <td className="num py-3 pr-3 text-right text-ink">{s.participant_count ?? "—"}</td>

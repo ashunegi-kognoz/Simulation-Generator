@@ -28,7 +28,7 @@ export function ControlBar({
             Simulations
           </button>
           <button className="rounded-lg px-2.5 py-1.5 font-medium text-muted hover:text-ink" onClick={onLogs}>
-            API Logs
+            Logs
           </button>
         </nav>
 
