@@ -8,11 +8,11 @@ verbatim from the brief; only the version constants are added here.
 from __future__ import annotations
 
 # --- versions ---
-FORGE_PROMPT_V = "forge.v2"
-WORLD_PROMPT_V = "world.v2"
-COMMON_PROMPT_V = "common.v2"
-ROLE_PROMPT_V = "role.v2"
-TEAM_PROMPT_V = "team.v2"
+FORGE_PROMPT_V = "forge.v3"
+WORLD_PROMPT_V = "world.v3"
+COMMON_PROMPT_V = "common.v3"
+ROLE_PROMPT_V = "role.v3"
+TEAM_PROMPT_V = "team.v3"
 BALANCE_PROMPT_V = "balance.v2"
 NAIVE_PROMPT_V = "naive.v2"
 CONSISTENCY_PROMPT_V = "consistency.v2"
@@ -28,6 +28,35 @@ OBJECTIVE
 Create dilemma-driven decisions that reveal participant preference through allocation across four
 postures. No option may be obviously correct or obviously weak.
 
+SIMULATION DESIGN PRINCIPLES
+- discovery_before_explanation:
+  - Participants should discover the dilemma themselves.
+  - Present only observable business facts.
+  - Never explain the strategic tension.
+  - Never summarize competing priorities.
+  - Never hint which direction is strongest.
+- information_asymmetry:
+  - Simulate real executive decision-making with incomplete but sufficient information.
+  - Present facts and allow participants to infer trade-offs.
+  - Never connect facts into strategic conclusions.
+
+EXECUTIVE BRIEFING PRINCIPLE
+Before the decision board, content must read like an executive briefing.
+- Always include: facts, numbers, deadlines, stakeholder requests, constraints, uncertainty.
+- Never include: explanation of the dilemma, competing priorities, hidden trade-offs, strategic advice,
+  evaluation criteria, strongest option, participant guidance, recommended thinking.
+
+EDITORIAL STANDARDS
+Never reveal:
+- intended dilemma
+- hidden trade-offs
+- competing priorities
+- recommended strategic direction
+- evaluation criteria
+- what participant should optimize
+- strongest option
+- why one option is better
+
 CONTEXT (always provided)
 - Narrative bible: source of truth for shared facts, numbers, stakeholders, and dates.
 - Generation context: role and KPI trade-offs for one participant or team context.
@@ -38,10 +67,14 @@ HARD RULES
 2. Use concrete numbers, deadlines, and named stakeholders grounded in the bible.
 3. Write one decision question per requested dimension.
 4. For each decision, return exactly four options: Protect, Enable, Hybrid, Defer (one each).
-5. Each option must include: clear action, enterprise consequence, explicit trade-off.
+5. Each option must include: executive action, immediate operational consequence, resource implication.
 6. Defer must be a legitimate strategic path with trigger/condition, never avoidance.
 7. Hybrid must include coordination friction or execution complexity, not a safe blend.
 8. Option strength and specificity must be balanced; all four should be defensible to a capable leader.
+9. Describe option consequences objectively. Avoid self-advertising language (for example: safer,
+   balanced, innovative, best, strongest, preferred).
+10. The decision question should emerge naturally from context. Do not restate or explain the dilemma.
+    Assume the participant already read the executive briefing.
 
 DIMENSION INTENT
 - MOVE: where to commit resources to shift trajectory.
@@ -51,6 +84,9 @@ DIMENSION INTENT
 WRITING STANDARD
 Executive register only: concise, direct, quantified, realistic, mobile-readable.
 Avoid cliches, motivational language, academic tone, and generic filler.
+Replace leakage phrasing ("you must balance", "the challenge is", "the key trade-off is",
+"this decision tests", "while maintaining", "to avoid", "this creates tension") with
+factual statements only: facts, numbers, deadlines, stakeholder requests, and constraints.
 
 OUTPUT CONTRACT
 Return only JSON matching the decision schema:
@@ -79,6 +115,10 @@ Return JSON matching the narrative bible schema with:
 QUALITY BAR
 - Include explicit numbers, dates, and dependencies.
 - Ensure facts can support realistic role-level decisions later.
+- Narrative facts must remain observational.
+- Do not summarize strategic tension, explain competing priorities, recommend priorities,
+  or explain the dilemma.
+- Facts should allow multiple reasonable interpretations.
 - No generic filler or motivational language.
 - No markdown, no prose outside JSON.
 """
@@ -89,9 +129,10 @@ Using the bible and subject_matter, produce common simulation content in strict 
 Return JSON only matching CommonData.
 
 REQUIREMENTS BY FIELD
-- allocation_room_data: frame constrained decision space with enterprise stakes, scarce resources,
-  urgency, and quantified trade-offs.
-- business_landscape: concise enterprise reality (mandate, constraints, risk, urgency, consequences).
+- allocation_room_data: describe available resources, enterprise constraints, timing pressure,
+  operational facts, financial facts, and decision ownership. Do not describe strategic trade-offs.
+- business_landscape: enterprise reality using observable facts, operating constraints, deadlines,
+  stakeholder expectations, financial context, and operational pressures. Avoid strategic interpretation.
 - business_priorities: exactly five shared priorities, distinct and decision-relevant.
 - crisis_data: immediate trigger event with timeline pressure and stakeholder reactions.
 - reflection_board_helping_data: concise reflection guidance linking allocation patterns to leadership
@@ -101,6 +142,7 @@ GLOBAL RULES
 - Every important claim must be grounded in bible facts.
 - Use specific numbers, realistic timelines, named stakeholders, explicit consequences.
 - Keep language concise, direct, and decision-oriented.
+- Before the decision board, present facts only; do not interpret those facts.
 - Avoid cliches, cheerleading, and generic abstractions.
 """
 
@@ -114,9 +156,13 @@ ROLE STANDARD
 SITUATION STANDARD
 - Begin with "YOUR SITUATION".
 - Present one authentic role-owned executive decision under real constraints.
-- Include competing priorities, urgency source, key dependency, and enterprise consequences.
+- Describe current operating state, urgency source, stakeholder requests, dependencies, constraints,
+  deadlines, and measurable business facts.
 - Anchor with concrete data (numbers, dates, named stakeholders) from the bible.
 - End with a short "YOUR DATA" block (3-4 labelled quantitative anchors).
+- Only observable facts. Do not interpret those facts.
+- Do NOT describe competing priorities, trade-offs, possible approaches, recommended direction,
+  or why the decision is difficult. The participant should infer the tension.
 
 QUALITY RULES
 - No teaching tone; this is live decision context, not explanation.
@@ -129,14 +175,17 @@ TEAM_PROMPT = """\
 Generate team-round content from the bible.
 
 OUTPUT
-- scenario_data: one shared enterprise dilemma the team must resolve together.
-- members[*].situation_data: role-specific view of the same shared dilemma.
+- scenario_data: one shared enterprise operating situation the team must resolve together.
+- members[*].situation_data: role-specific view of the same shared operating situation.
 
 HARD RULES
 - One shared decision board for the team. Do not imply different option sets by member.
 - Keep shared facts, numbers, dates, and stakeholders fully consistent.
+- scenario_data must include: operational context, current operating state, urgency source,
+  dependent stakeholder, known constraints, observable consequences.
 - Each member situation must begin with "YOUR SITUATION" and reflect that role's accountability,
-  trade-offs, and dependencies within the shared scenario.
+  dependencies, constraints, and available information within the shared scenario.
+- Do not explicitly describe strategic trade-offs.
 - Keep writing concise, quantified, and realistic.
 
 Return JSON only matching the expected team/member schema.
