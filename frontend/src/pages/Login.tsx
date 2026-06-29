@@ -4,7 +4,7 @@ import type { AuthResponse } from "../api/types";
 import { Banner } from "../components/ui";
 
 export function Login({ onAuthed }: { onAuthed: (auth: AuthResponse) => void }) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [workspace, setWorkspace] = useState("");
