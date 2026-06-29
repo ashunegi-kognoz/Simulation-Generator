@@ -8,9 +8,9 @@ verbatim from the brief; only the version constants are added here.
 from __future__ import annotations
 
 # --- versions ---
-FORGE_PROMPT_V = "forge.v3"
+FORGE_PROMPT_V = "forge.v4"
 WORLD_PROMPT_V = "world.v3"
-COMMON_PROMPT_V = "common.v3"
+COMMON_PROMPT_V = "common.v4"
 ROLE_PROMPT_V = "role.v3"
 TEAM_PROMPT_V = "team.v3"
 BALANCE_PROMPT_V = "balance.v2"
@@ -57,6 +57,21 @@ Never reveal:
 - strongest option
 - why one option is better
 
+Never imply through wording that an option:
+
+- builds capability
+- improves leadership
+- strengthens culture
+- develops talent
+- creates resilience
+- increases effectiveness
+- drives transformation
+- is best practice
+- is the mature approach
+- is strategically superior
+
+unless these outcomes already exist as observable facts within the supplied context.
+
 CONTEXT (always provided)
 - Narrative bible: source of truth for shared facts, numbers, stakeholders, and dates.
 - Generation context: role and KPI trade-offs for one participant or team context.
@@ -67,7 +82,25 @@ HARD RULES
 2. Use concrete numbers, deadlines, and named stakeholders grounded in the bible.
 3. Write one decision question per requested dimension.
 4. For each decision, return exactly four options: Protect, Enable, Hybrid, Defer (one each).
-5. Each option must include: executive action, immediate operational consequence, resource implication.
+5. Each option must include:
+   - executive decision (what the leader chooses to prioritize),
+   - potential operational benefits,
+   - potential operational risks.
+
+   Describe likely implications, not implementation plans.
+
+   Do not prescribe execution activities such as:
+   - coaching schedules
+   - stakeholder mapping
+   - governance routines
+   - operating rhythms
+   - review cadence
+   - reinforcement plans
+   - documentation
+   - scorecards
+   - process mechanics
+
+   unless they already exist as fixed business constraints in the supplied context.
 6. Defer must be a legitimate strategic path with trigger/condition, never avoidance.
 7. Hybrid must include coordination friction or execution complexity, not a safe blend.
 8. Option strength and specificity must be balanced; all four should be defensible to a capable leader.
@@ -76,17 +109,129 @@ HARD RULES
 10. The decision question should emerge naturally from context. Do not restate or explain the dilemma.
     Assume the participant already read the executive briefing.
 
+DECISION NEUTRALITY
+
+Decision options represent competing leadership philosophies,
+not recommended actions.
+
+Every option must appear reasonable to an experienced executive.
+
+Participants should be unable to infer the preferred answer
+from wording alone.
+
+Every option must contain:
+
+- a believable upside
+- a believable downside
+- operational uncertainty
+
+Do not make one option sound:
+
+- more strategic
+- more collaborative
+- more future-oriented
+- more mature
+- more transformational
+- more people-centric
+
+than another.
+
 DIMENSION INTENT
 - MOVE: where to commit resources to shift trajectory.
 - HOLD: what to protect or sustain under pressure.
 - FRAME: how to define, sequence, or escalate the decision.
 
+IMPLEMENTATION GUIDANCE
+
+Decision options stop at strategic intent.
+
+Do NOT prescribe execution mechanics.
+
+Avoid generating:
+
+- coaching cadence
+- weekly reviews
+- stakeholder mapping
+- reinforcement plans
+- operating rhythm
+- governance model
+- documentation process
+- scorecards
+- operating routines
+- reporting templates
+- implementation roadmaps
+
+unless these are explicitly mentioned in the business context.
+
+Participants choose priorities,
+not implementation plans.
+
 WRITING STANDARD
+Executive register only.
+
+Describe executive choices,
+not consulting recommendations.
+
+Prefer neutral verbs such as:
+
+- prioritize
+- maintain
+- shift
+- delay
+- reserve
+- distribute
+- expand
+- reduce
+- concentrate
+
+Avoid evaluative verbs such as:
+
+- improve
+- strengthen
+- optimize
+- maximize
+- build
+- reinforce
+- develop
+- accelerate
+- enable
+
+unless directly supported by observable business evidence.
+
 Executive register only: concise, direct, quantified, realistic, mobile-readable.
 Avoid cliches, motivational language, academic tone, and generic filler.
 Replace leakage phrasing ("you must balance", "the challenge is", "the key trade-off is",
 "this decision tests", "while maintaining", "to avoid", "this creates tension") with
 factual statements only: facts, numbers, deadlines, stakeholder requests, and constraints.
+
+OPTION SYMMETRY
+
+Every option should follow the same structure
+and approximately the same level of detail.
+
+No option should contain:
+
+- richer reasoning
+- stronger business language
+- longer justification
+- better sounding leadership language
+
+All four options should appear equally credible
+before any outcomes occur.
+
+EXECUTIVE DILEMMA TEST
+
+Before returning a decision, mentally test the option set.
+
+If a neutral executive,
+reading only the option wording,
+could correctly guess which option
+the simulation designer prefers,
+
+rewrite the options.
+
+Repeat until every option appears
+equally defensible.
 
 OUTPUT CONTRACT
 Return only JSON matching the decision schema:
@@ -135,8 +280,22 @@ REQUIREMENTS BY FIELD
   stakeholder expectations, financial context, and operational pressures. Avoid strategic interpretation.
 - business_priorities: exactly five shared priorities, distinct and decision-relevant.
 - crisis_data: immediate trigger event with timeline pressure and stakeholder reactions.
-- reflection_board_helping_data: concise reflection guidance linking allocation patterns to leadership
-  tendencies and organizational implications.
+- reflection_board_helping_data:
+
+  Generate facilitator discussion prompts only.
+
+  Do NOT interpret participant behaviour.
+
+  Do NOT infer leadership style.
+
+  Do NOT imply which allocation pattern is superior.
+
+  Focus only on observable allocation themes,
+  business outcomes,
+  and discussion questions that can be explored during debrief.
+
+  Reflection guidance must never reveal
+  what participants should have done.
 
 GLOBAL RULES
 - Every important claim must be grounded in bible facts.
