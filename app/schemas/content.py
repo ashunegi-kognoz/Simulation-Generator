@@ -85,7 +85,7 @@ class CommonData(BaseModel):
     business_priorities: list[str] = Field(min_length=5, max_length=5)
     crisis_data: str
     reflection_board_helping_data: str
-    posture_scheme: PostureScheme
+    posture_scheme: PostureScheme | None = None
 
 
 # ---------- DECISION / CONTENT (canonical; positions shuffled at render) ----------
