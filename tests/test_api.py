@@ -216,8 +216,8 @@ async def test_full_offline_flow() -> None:
         r = await client.get(f"/simulations/{sim_id}", headers={"X-Tenant-Id": str(tenant_b)})
         assert r.status_code == 404
 
-        # missing tenant header -> 422 (required header)
+        # no auth (no bearer, no tenant header) -> 401
         r = await client.get(f"/simulations/{sim_id}")
-        assert r.status_code == 422
+        assert r.status_code == 401
 
     await dispose_engine()

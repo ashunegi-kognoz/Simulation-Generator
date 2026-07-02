@@ -11,6 +11,7 @@ from app.schemas.common import (
 from app.schemas.content import (
     BalanceReport,
     CommonData,
+    PostureScheme,
     ConsistencyReport,
     Decision,
     DecisionSet,
@@ -63,6 +64,7 @@ __all__ = [
     "Stakeholder",
     "NarrativeBible",
     "CommonData",
+    "PostureScheme",
     "Option",
     "Decision",
     "DecisionSet",

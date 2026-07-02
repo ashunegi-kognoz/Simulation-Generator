@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -103,6 +103,17 @@ async def get_content(
     tenant: uuid.UUID = Depends(deps.tenant_id),
 ) -> dict:
     return await generation_service.get_content(db, tenant, simulation_id)
+
+
+@router.put("/{simulation_id}/content")
+async def update_content(
+    simulation_id: uuid.UUID,
+    body: dict = Body(...),
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    sim_data = body.get("sim_data", body)
+    return await generation_service.update_content(db, tenant, simulation_id, sim_data)
 
 
 @router.get("/{simulation_id}/logs")

@@ -67,6 +67,9 @@ export function AuthoringConsole({
   const [simulationId, setSimulationId] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [flagged, setFlagged] = useState<FlaggedDecision[] | null>(null);
+  const [roleErr, setRoleErr] = useState<Record<number, string | null>>({});
+  const setRoleError = (i: number, msg: string | null) =>
+    setRoleErr((prev) => ({ ...prev, [i]: msg }));
 
   function patch(p: Partial<typeof form>) {
     setForm((f) => ({ ...f, ...p }));
@@ -300,6 +303,59 @@ export function AuthoringConsole({
                   options={BANDS}
                   onChange={(v) => patchRole(i, { seniority_band: v as RoleOverview["seniority_band"] })}
                 />
+                <div className="sm:col-span-2">
+                  <label className="label">Role brief — upload .md / .txt (optional, max 1 MB)</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept=".md,.txt,text/markdown,text/plain"
+                      className="text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white hover:file:opacity-90"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        if (!/\.(md|txt)$/i.test(file.name)) {
+                          setRoleError(i, "Only .md or .txt files are supported.");
+                          return;
+                        }
+                        if (file.size > 1_000_000) {
+                          setRoleError(i, "File is larger than 1 MB.");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          patchRole(i, { context: String(reader.result ?? "") });
+                          setRoleError(i, null);
+                        };
+                        reader.onerror = () => setRoleError(i, "Couldn't read that file.");
+                        reader.readAsText(file);
+                      }}
+                    />
+                    {role.context ? (
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-coral hover:underline"
+                        onClick={() => {
+                          patchRole(i, { context: "" });
+                          setRoleError(i, null);
+                        }}
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
+                  {roleErr[i] ? <p className="mt-1 text-xs text-coral">{roleErr[i]}</p> : null}
+                  {role.context ? (
+                    <div className="mt-2">
+                      <div className="eyebrow mb-1">
+                        Preview · {role.context.length.toLocaleString()} chars
+                      </div>
+                      <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-canvas p-3 text-xs leading-relaxed text-ink">
+                        {role.context}
+                      </pre>
+                    </div>
+                  ) : null}
+                </div>
                 {form.role_overview.length > 1 && (
                   <button
                     type="button"

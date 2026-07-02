@@ -26,6 +26,7 @@ from app.models import (
 )
 from app.services.errors import NotFoundError, StateError
 from app.schemas.input import SimulationInput
+from app.schemas.metadata import SimData
 
 
 async def _require_tenant(session: AsyncSession, tenant_id: uuid.UUID) -> Tenant:
@@ -397,3 +398,63 @@ async def get_mapping(
         )
 
     return {"participants": participants, "teams": team_out}
+
+
+async def update_content(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    simulation_id: uuid.UUID,
+    sim_data_in: dict,
+) -> dict:
+    """Persist admin edits to the latest generated content.
+
+    Validates the edited content against ``SimData``, overwrites the latest
+    version's ``sim_data_jsonb``, and syncs the per-decision ``DecisionRecord``
+    rows in place (so the participant runtime, which reads those rows, reflects
+    the edits) while preserving each record's balance report and review flag.
+    """
+    await get_simulation(session, tenant_id, simulation_id)
+    version = await latest_version(session, simulation_id)
+    if version is None:
+        raise NotFoundError("no generated content to edit")
+
+    # Validate: rejects structural corruption (e.g. a decision missing a posture).
+    validated = SimData.model_validate(sim_data_in)
+    data = validated.model_dump(mode="json")
+    version.sim_data_jsonb = data
+
+    records = (
+        await session.execute(
+            select(DecisionRecord).where(
+                DecisionRecord.simulation_version_id == version.id
+            )
+        )
+    ).scalars().all()
+    by_key = {
+        (r.owner_type, r.owner_id, r.round_index, r.decision_number): r for r in records
+    }
+
+    def _sync(owner_type: str, owner_id: str, round_index: int, board: list[dict]) -> None:
+        for d in board or []:
+            rec = by_key.get((owner_type, owner_id, round_index, d["decision_number"]))
+            if rec is not None:
+                rec.decision_jsonb = d
+                rec.dimension = d.get("dimension", rec.dimension)
+
+    for round_key, rnd in (data.get("rounds") or {}).items():
+        try:
+            ridx = int(round_key.replace("round_", ""))
+        except (ValueError, AttributeError):
+            continue
+        for pid, pc in (rnd.get("participants") or {}).items():
+            _sync("participant", pid, ridx, pc.get("decision_board", []))
+        for _tid, tc in (rnd.get("teams") or {}).items():
+            for pid, mc in (tc.get("members") or {}).items():
+                _sync("team_member", pid, ridx, mc.get("decision_board", []))
+
+    await session.commit()
+    return {
+        "simulation_id": str(simulation_id),
+        "version": version.version,
+        "saved": True,
+    }

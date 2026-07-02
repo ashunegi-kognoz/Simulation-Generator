@@ -10,8 +10,8 @@ from __future__ import annotations
 # --- versions ---
 FORGE_PROMPT_V = "forge.v4"
 WORLD_PROMPT_V = "world.v3"
-COMMON_PROMPT_V = "common.v4"
-ROLE_PROMPT_V = "role.v3"
+COMMON_PROMPT_V = "common.v5"
+ROLE_PROMPT_V = "role.v4"
 TEAM_PROMPT_V = "team.v3"
 BALANCE_PROMPT_V = "balance.v2"
 NAIVE_PROMPT_V = "naive.v2"
@@ -280,6 +280,21 @@ REQUIREMENTS BY FIELD
   stakeholder expectations, financial context, and operational pressures. Avoid strategic interpretation.
 - business_priorities: exactly five shared priorities, distinct and decision-relevant.
 - crisis_data: immediate trigger event with timeline pressure and stakeholder reactions.
+- posture_scheme: infer THIS simulation's decision category from subject_matter and the business
+  context (for example "Stakeholder Influence", "Strategy", "Turnaround", "Market Entry",
+  "Restructuring") and set inferred_category to it. Then name the four fixed decision stances in
+  language natural to that category. The four stances are FIXED IN MEANING; only their names and
+  framing adapt. For each, write a LABEL (2-4 words, the vocabulary a leader in this context would
+  use) and a one-sentence DEFINITION:
+    * protect_label / protect_definition -- defends the current position, mandate, or commitments
+      (holds ground).
+    * enable_label / enable_definition -- spends locally to expand shared or enterprise-wide capacity
+      (opens things up).
+    * hybrid_label / hybrid_definition -- pursues both at once and absorbs the coordination or
+      execution cost (a real blend, never a safe compromise).
+    * defer_label / defer_definition -- postpones or elevates the decision behind an explicit trigger,
+      condition, or higher authority (a legitimate path, never avoidance).
+  Labels must be distinct, non-overlapping, and category-appropriate.
 - reflection_board_helping_data:
 
   Generate facilitator discussion prompts only.
@@ -308,6 +323,10 @@ GLOBAL RULES
 # --- 10.4 RoleSmith ---
 ROLE_PROMPT = """\
 Using bible + role_overview + kpi_critical_tradeoff, return JSON only with role_data and situation_data.
+- If GENERATION_CONTEXT contains a non-empty role_context, treat it as an authoritative brief for THIS
+  role: fold its specifics (responsibilities, mandate, reporting reality, tensions, named stakeholders)
+  into role_data and situation_data, staying consistent with the bible. Do not contradict it; do not
+  invent beyond it and the bible.
 
 ROLE STANDARD
 - role_data must reflect role title, entity, scope, reporting line, and authority boundary.

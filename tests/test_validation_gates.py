@@ -10,7 +10,7 @@ from app.llm.mock_provider import MockLLMProvider
 from app.llm.provider import ParsedResult
 from app.pipeline.decisions import build_decisions
 from app.pipeline.reduce import editorial_violations, option_word_parity_ok
-from app.schemas.content import BalanceReport, Decision, Option
+from app.schemas.content import BalanceReport, Decision, Option, kv_int
 
 
 @pytest.fixture(autouse=True)
@@ -68,7 +68,7 @@ class _AlwaysFailCriticMock(MockLLMProvider):
             scores = {"Protect": 95, "Enable": 20, "Hybrid": 60, "Defer": 30}
             res = ParsedResult(
                 output_parsed=BalanceReport(
-                    naive_scores=scores,
+                    naive_scores=kv_int(scores),
                     max_minus_min=max(scores.values()) - min(scores.values()),
                     passed=False,
                     notes="Protect dominates.",

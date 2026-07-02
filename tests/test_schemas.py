@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from app.schemas import (
     Allocation,
     CommonData,
+    PostureScheme,
     Decision,
     Option,
     RoundSpec,
@@ -178,7 +179,19 @@ def test_common_data_requires_exactly_five_priorities():
     kwargs = dict(
         allocation_room_data="x",
         business_landscape="y",
+        crisis_data="c",
         reflection_board_helping_data="z",
+        posture_scheme=PostureScheme(
+            inferred_category="Strategy",
+            protect_label="Hold",
+            protect_definition="defend",
+            enable_label="Open",
+            enable_definition="expand",
+            hybrid_label="Both",
+            hybrid_definition="blend",
+            defer_label="Wait",
+            defer_definition="postpone",
+        ),
     )
     with pytest.raises(ValidationError):
         CommonData(business_priorities=["1", "2", "3", "4"], **kwargs)

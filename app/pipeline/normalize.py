@@ -143,6 +143,7 @@ class IntakeNormalizer:
                 seniority_band=role.seniority_band,
                 kpi_tradeoffs=list(si.kpi_critical_tradeoff),
                 locale=si.locale,
+                role_context=role.context,
             )
 
         individual_rounds = [r for r in si.rounds if r.round_type == "individual"]

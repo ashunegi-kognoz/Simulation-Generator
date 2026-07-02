@@ -37,6 +37,7 @@ from app.schemas.content import (
     kv_int,
     BalanceReport,
     CommonData,
+    PostureScheme,
     ConsistencyReport,
     Decision,
     DecisionSet,
@@ -205,6 +206,17 @@ def _common(rng: random.Random) -> CommonData:
         ),
         reflection_board_helping_data=_prose(
             rng.randint(1, 10**9), "Reflection links decision patterns to systems and polarities"
+        ),
+        posture_scheme=PostureScheme(
+            inferred_category="Strategy",
+            protect_label="Hold the Line",
+            protect_definition="Defend the current operating position and the commitments that depend on it.",
+            enable_label="Open the Field",
+            enable_definition="Shift resources to expand shared, enterprise-wide capacity.",
+            hybrid_label="Run Both Tracks",
+            hybrid_definition="Fund protection and expansion together, accepting coordination drag.",
+            defer_label="Hold and Revisit",
+            defer_definition="Postpone the commitment behind an explicit trigger or condition.",
         ),
     )
 

@@ -22,6 +22,7 @@ export interface RoleOverview {
   reporting_line: string;
   scope: string;
   seniority_band: "mid" | "senior" | "exec" | "c_suite";
+  context?: string;
 }
 
 export interface KpiTradeoff {
@@ -221,8 +222,21 @@ export interface SimContent {
     business_priorities: string[];
     crisis_data: string;
     reflection_board_helping_data: string;
+    posture_scheme?: PostureScheme;
   };
   rounds: Record<string, SimContentRound>;
+}
+
+export interface PostureScheme {
+  inferred_category: string;
+  protect_label: string;
+  protect_definition: string;
+  enable_label: string;
+  enable_definition: string;
+  hybrid_label: string;
+  hybrid_definition: string;
+  defer_label: string;
+  defer_definition: string;
 }
 export interface SimContentResponse {
   simulation_id: string;

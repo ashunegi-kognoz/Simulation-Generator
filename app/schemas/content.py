@@ -59,12 +59,33 @@ class NarrativeBible(BaseModel):
     tone_guide: str
 
 
+class PostureScheme(BaseModel):
+    """Per-simulation, model-generated naming for the four canonical stances.
+
+    The four postures (Protect/Enable/Hybrid/Defer) remain the fixed internal
+    keys that the structural validator, balance gate, and scoring rely on. This
+    scheme gives each of them a category-appropriate *display* label + definition,
+    inferred from the business context, so participants never see the raw keys.
+    """
+
+    inferred_category: str
+    protect_label: str
+    protect_definition: str
+    enable_label: str
+    enable_definition: str
+    hybrid_label: str
+    hybrid_definition: str
+    defer_label: str
+    defer_definition: str
+
+
 class CommonData(BaseModel):
     allocation_room_data: str
     business_landscape: str
     business_priorities: list[str] = Field(min_length=5, max_length=5)
     crisis_data: str
     reflection_board_helping_data: str
+    posture_scheme: PostureScheme
 
 
 # ---------- DECISION / CONTENT (canonical; positions shuffled at render) ----------

@@ -11,6 +11,7 @@ import type {
   PostureUnits,
   Reflection,
   RenderedSession,
+  SimContent,
   SimContentResponse,
   SimulationDetailMeta,
   SimulationInput,
@@ -116,6 +117,12 @@ export const api = {
 
   getContent: (simulationId: string, token: string) =>
     request<SimContentResponse>(`/simulations/${simulationId}/content`, { token }),
+
+  updateContent: (simulationId: string, token: string, sim_data: SimContent) =>
+    request<{ simulation_id: string; version: number | null; saved: boolean }>(
+      `/simulations/${simulationId}/content`,
+      { method: "PUT", token, body: JSON.stringify({ sim_data }) },
+    ),
 
   getLogs: (simulationId: string, token: string) =>
     request<LogsResponse>(`/simulations/${simulationId}/logs`, { token }),
