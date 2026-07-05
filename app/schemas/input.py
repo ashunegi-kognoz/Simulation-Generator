@@ -41,6 +41,22 @@ class RoleOverview(BaseModel):
     context: str = Field(default="", max_length=1_000_000)
 
 
+class RoleFieldsExtraction(BaseModel):
+    """Structured fields extracted from an uploaded role brief, to pre-fill the form.
+
+    Free-text fields are "" when the brief doesn't state them. seniority_band and
+    gender fall back to their role defaults when the brief gives no signal.
+    """
+
+    role_title: str = ""
+    function: str = ""
+    entity: str = ""
+    reporting_line: str = ""
+    scope: str = ""
+    seniority_band: Literal["mid", "senior", "exec", "c_suite"] = "senior"
+    gender: Literal["male", "female", "non_binary", "unspecified"] = "unspecified"
+
+
 class TeamConfig(BaseModel):
     size: int = Field(ge=2, le=4)
     unique_group_names: list[str]

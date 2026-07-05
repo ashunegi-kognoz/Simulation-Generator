@@ -44,6 +44,27 @@ async def list_simulations(
     return {"simulations": await generation_service.list_simulations(db, tenant)}
 
 
+@router.post("/parse-role")
+async def parse_role(
+    body: dict = Body(...),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    """Extract structured role fields from an uploaded free-form brief (LLM)."""
+    from app.llm.call import LLMError
+    from app.services.role_parse_service import parse_role_brief
+
+    text = (body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="No brief text was provided.")
+    if len(text) > 1_000_000:
+        raise HTTPException(status_code=400, detail="Brief is too large (max ~1 MB).")
+    try:
+        fields = await parse_role_brief(text)
+    except LLMError as exc:
+        raise HTTPException(status_code=502, detail=f"Couldn't extract fields: {exc}") from exc
+    return fields.model_dump()
+
+
 @router.get("/{simulation_id}")
 async def get_simulation(
     simulation_id: uuid.UUID,

@@ -11,6 +11,7 @@ import type {
   PostureUnits,
   Reflection,
   RenderedSession,
+  RoleFieldsExtraction,
   SimContent,
   SimContentResponse,
   SimulationImage,
@@ -154,6 +155,13 @@ export const api = {
       body: JSON.stringify(input),
       token,
       idempotencyKey,
+    }),
+
+  parseRole: (token: string, text: string) =>
+    request<RoleFieldsExtraction>("/simulations/parse-role", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ text }),
     }),
 
   getStatus: (simulationId: string, token: string) =>

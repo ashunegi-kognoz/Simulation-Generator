@@ -78,6 +78,9 @@ export function AuthoringConsole({
   const [roleErr, setRoleErr] = useState<Record<number, string | null>>({});
   const setRoleError = (i: number, msg: string | null) =>
     setRoleErr((prev) => ({ ...prev, [i]: msg }));
+  const [parsing, setParsingState] = useState<Record<number, boolean>>({});
+  const setParsing = (i: number, v: boolean) =>
+    setParsingState((prev) => ({ ...prev, [i]: v }));
 
   function patch(p: Partial<typeof form>) {
     setForm((f) => ({ ...f, ...p }));
@@ -325,7 +328,7 @@ export function AuthoringConsole({
                       type="file"
                       accept=".md,.txt,text/markdown,text/plain"
                       className="text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white hover:file:opacity-90"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         e.target.value = "";
                         if (!file) return;
@@ -337,13 +340,39 @@ export function AuthoringConsole({
                           setRoleError(i, "File is larger than 1 MB.");
                           return;
                         }
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          patchRole(i, { context: String(reader.result ?? "") });
-                          setRoleError(i, null);
-                        };
-                        reader.onerror = () => setRoleError(i, "Couldn't read that file.");
-                        reader.readAsText(file);
+                        let text = "";
+                        try {
+                          text = await file.text();
+                        } catch {
+                          setRoleError(i, "Couldn't read that file.");
+                          return;
+                        }
+                        setRoleError(i, null);
+                        // keep the full brief as context, then extract fields from it
+                        patchRole(i, { context: text });
+                        setParsing(i, true);
+                        try {
+                          const f = await api.parseRole(token, text);
+                          const patch: Partial<RoleOverview> = {
+                            seniority_band: f.seniority_band,
+                            gender: f.gender,
+                          };
+                          if (f.role_title) patch.role_title = f.role_title;
+                          if (f.function) patch.function = f.function;
+                          if (f.entity) patch.entity = f.entity;
+                          if (f.reporting_line) patch.reporting_line = f.reporting_line;
+                          if (f.scope) patch.scope = f.scope;
+                          patchRole(i, patch);
+                        } catch (err) {
+                          setRoleError(
+                            i,
+                            err instanceof ApiError
+                              ? `Uploaded, but couldn't auto-fill fields: ${err.message}`
+                              : "Uploaded, but couldn't auto-fill fields — enter them manually.",
+                          );
+                        } finally {
+                          setParsing(i, false);
+                        }
                       }}
                     />
                     {role.context ? (
@@ -358,7 +387,14 @@ export function AuthoringConsole({
                         Clear
                       </button>
                     ) : null}
+                    {parsing[i] ? (
+                      <span className="text-xs text-petrol">Extracting fields…</span>
+                    ) : null}
                   </div>
+                  <p className="mt-1 text-xs text-faint">
+                    Uploading auto-fills the fields above from the brief (review and edit before
+                    generating). The full brief is also kept as context.
+                  </p>
                   {roleErr[i] ? <p className="mt-1 text-xs text-coral">{roleErr[i]}</p> : null}
                   {role.context ? (
                     <div className="mt-2">

@@ -304,3 +304,14 @@ export interface SimulationImage {
   content_type: string;
   created_at: string;
 }
+
+// ---- role brief field extraction (parsed from an uploaded .md/.txt) ----
+export interface RoleFieldsExtraction {
+  role_title: string;
+  function: string;
+  entity: string;
+  reporting_line: string;
+  scope: string;
+  seniority_band: "mid" | "senior" | "exec" | "c_suite";
+  gender: "male" | "female" | "non_binary" | "unspecified";
+}
