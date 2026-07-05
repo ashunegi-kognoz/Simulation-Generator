@@ -13,6 +13,13 @@ import { Banner, Panel, Spinner, StatusBadge } from "../components/ui";
 
 const DIMENSIONS: Dimension[] = ["MOVE", "HOLD", "FRAME"];
 const BANDS: RoleOverview["seniority_band"][] = ["mid", "senior", "exec", "c_suite"];
+const GENDERS: NonNullable<RoleOverview["gender"]>[] = ["male", "female", "non_binary", "unspecified"];
+const GENDER_LABELS: Record<string, string> = {
+  male: "Male",
+  female: "Female",
+  non_binary: "Non-binary",
+  unspecified: "Unspecified",
+};
 const TERMINAL = new Set(["ready", "needs_review", "failed"]);
 
 function defaultInput(): Omit<SimulationInput, "tenant_id"> {
@@ -36,6 +43,7 @@ function defaultInput(): Omit<SimulationInput, "tenant_id"> {
         reporting_line: "COO",
         scope: "South region",
         seniority_band: "exec",
+        gender: "unspecified",
       },
     ],
     kpi_critical_tradeoff: [
@@ -285,7 +293,7 @@ export function AuthoringConsole({
               patch({
                 role_overview: [
                   ...form.role_overview,
-                  { role_title: "", function: "", entity: form.company_name, reporting_line: "", scope: "", seniority_band: "senior" },
+                  { role_title: "", function: "", entity: form.company_name, reporting_line: "", scope: "", seniority_band: "senior", gender: "unspecified" },
                 ],
               })
             }
@@ -302,6 +310,13 @@ export function AuthoringConsole({
                   value={role.seniority_band}
                   options={BANDS}
                   onChange={(v) => patchRole(i, { seniority_band: v as RoleOverview["seniority_band"] })}
+                />
+                <Select
+                  label="Gender"
+                  value={role.gender ?? "unspecified"}
+                  options={GENDERS}
+                  onChange={(v) => patchRole(i, { gender: v as RoleOverview["gender"] })}
+                  format={(g) => GENDER_LABELS[g] ?? g}
                 />
                 <div className="sm:col-span-2">
                   <label className="label">Role brief — upload .md / .txt (optional, max 1 MB)</label>
@@ -527,18 +542,20 @@ function Select({
   value,
   options,
   onChange,
+  format,
 }: {
   label: string;
   value: string;
   options: readonly string[];
   onChange: (v: string) => void;
+  format?: (o: string) => string;
 }) {
   return (
     <div>
       <label className="label">{label}</label>
       <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
+          <option key={o} value={o}>{format ? format(o) : o}</option>
         ))}
       </select>
     </div>

@@ -17,7 +17,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, String, Text, func
+from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint, func
 from app.models._types import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,6 +45,28 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+
+
+class SimulationImage(Base):
+    """A named image slot for a simulation (e.g. welcome/role-brief backgrounds).
+
+    Dynamic: any number of slots per simulation, keyed by a user-provided ``name``
+    (unique per simulation). The image itself lives in Cloudinary; only the URL and
+    the Cloudinary public_id (for deletion) are stored here.
+    """
+
+    __tablename__ = "simulation_images"
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    simulation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("simulations.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    url: Mapped[str] = mapped_column(String(1024), nullable=False)
+    public_id: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    content_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+
+    __table_args__ = (UniqueConstraint("simulation_id", "name", name="uq_sim_image_name"),)
 
 
 class Simulation(Base):

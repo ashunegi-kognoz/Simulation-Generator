@@ -13,6 +13,7 @@ import type {
   RenderedSession,
   SimContent,
   SimContentResponse,
+  SimulationImage,
   SimulationDetailMeta,
   SimulationInput,
   SimulationListItem,
@@ -122,6 +123,22 @@ export const api = {
     request<{ simulation_id: string; version: number | null; saved: boolean }>(
       `/simulations/${simulationId}/content`,
       { method: "PUT", token, body: JSON.stringify({ sim_data }) },
+    ),
+
+  listImages: (simulationId: string, token: string) =>
+    request<{ images: SimulationImage[] }>(`/simulations/${simulationId}/images`, { token }),
+
+  addImage: (simulationId: string, token: string, name: string, data: string) =>
+    request<SimulationImage>(`/simulations/${simulationId}/images`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ name, data }),
+    }),
+
+  deleteImage: (simulationId: string, token: string, name: string) =>
+    request<{ deleted: boolean; name: string }>(
+      `/simulations/${simulationId}/images/${encodeURIComponent(name)}`,
+      { method: "DELETE", token },
     ),
 
   getLogs: (simulationId: string, token: string) =>

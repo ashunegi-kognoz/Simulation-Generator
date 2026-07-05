@@ -20,6 +20,7 @@ from app.models import (
     Participant,
     ReviewAction,
     Simulation,
+    SimulationImage,
     SimulationVersion,
     Team,
     Tenant,
@@ -458,3 +459,102 @@ async def update_content(
         "version": version.version,
         "saved": True,
     }
+
+
+def _image_out(row: "SimulationImage") -> dict:
+    return {
+        "name": row.name,
+        "url": row.url,
+        "content_type": row.content_type,
+        "created_at": row.created_at,
+    }
+
+
+async def list_simulation_images(
+    session: AsyncSession, tenant_id: uuid.UUID, simulation_id: uuid.UUID
+) -> list[dict]:
+    await get_simulation(session, tenant_id, simulation_id)
+    rows = (
+        await session.execute(
+            select(SimulationImage)
+            .where(SimulationImage.simulation_id == simulation_id)
+            .order_by(SimulationImage.created_at.asc())
+        )
+    ).scalars().all()
+    return [_image_out(r) for r in rows]
+
+
+async def add_simulation_image(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    simulation_id: uuid.UUID,
+    name: str,
+    data_uri: str,
+) -> dict:
+    """Upload an image to Cloudinary and store its URL under `name` (upsert by name)."""
+    from app.services import cloudinary_service
+
+    await get_simulation(session, tenant_id, simulation_id)
+    name = (name or "").strip()
+    if not name:
+        raise StateError("An image name is required.")
+    if not (data_uri or "").strip():
+        raise StateError("No image data was provided.")
+
+    result = await cloudinary_service.upload_image(
+        data_uri=data_uri, folder=f"allocation-room/{simulation_id}"
+    )
+
+    existing = (
+        await session.execute(
+            select(SimulationImage).where(
+                SimulationImage.simulation_id == simulation_id,
+                SimulationImage.name == name,
+            )
+        )
+    ).scalars().first()
+
+    if existing is not None:
+        old_public_id = existing.public_id
+        existing.url = result["url"]
+        existing.public_id = result["public_id"]
+        existing.content_type = result.get("content_type") or ""
+        await session.commit()
+        if old_public_id and old_public_id != result["public_id"]:
+            await cloudinary_service.delete_image(old_public_id)
+        row = existing
+    else:
+        row = SimulationImage(
+            simulation_id=simulation_id,
+            name=name,
+            url=result["url"],
+            public_id=result["public_id"],
+            content_type=result.get("content_type") or "",
+        )
+        session.add(row)
+        await session.commit()
+    return _image_out(row)
+
+
+async def delete_simulation_image(
+    session: AsyncSession, tenant_id: uuid.UUID, simulation_id: uuid.UUID, name: str
+) -> dict:
+    from app.services import cloudinary_service
+
+    await get_simulation(session, tenant_id, simulation_id)
+    row = (
+        await session.execute(
+            select(SimulationImage).where(
+                SimulationImage.simulation_id == simulation_id,
+                SimulationImage.name == name,
+            )
+        )
+    ).scalars().first()
+    if row is None:
+        raise NotFoundError("image not found")
+    public_id = row.public_id
+    await session.delete(row)
+    await session.commit()
+    if public_id:
+        await cloudinary_service.delete_image(public_id)
+    return {"deleted": True, "name": name}

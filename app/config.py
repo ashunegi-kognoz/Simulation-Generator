@@ -67,6 +67,17 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-insecure-change-me-please"
     jwt_expire_minutes: int = 60 * 24 * 7  # one week
 
+    # --- Cloudinary (image hosting for simulation assets) ---
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
+
+    @property
+    def cloudinary_configured(self) -> bool:
+        return bool(
+            self.cloudinary_cloud_name and self.cloudinary_api_key and self.cloudinary_api_secret
+        )
+
     @field_validator("database_url", mode="before")
     @classmethod
     def _normalize_database_url(cls, value: str) -> str:

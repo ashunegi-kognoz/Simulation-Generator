@@ -7,13 +7,15 @@ import { GroupRoom } from "./GroupRoom";
 import { ParticipantRuntime } from "./ParticipantRuntime";
 import { DetailsSettings } from "./detail/DetailsSettings";
 import { EntriesSection } from "./detail/EntriesSection";
+import { ImagesSection } from "./detail/ImagesSection";
 import { MappingSection } from "./detail/MappingSection";
 
-type SectionId = "settings" | "mapping" | "entries";
+type SectionId = "settings" | "mapping" | "entries" | "images";
 const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "settings", label: "Details & Settings" },
   { id: "mapping", label: "User & Group Mapping" },
   { id: "entries", label: "Simulation Entries" },
+  { id: "images", label: "Images" },
 ];
 
 type Overlay =
@@ -156,6 +158,9 @@ export function SimulationDetail({
               )}
               {section === "entries" && (
                 <EntriesSection simulationId={simulationId} token={token} />
+              )}
+              {section === "images" && (
+                <ImagesSection simulationId={simulationId} token={token} />
               )}
             </>
           )}

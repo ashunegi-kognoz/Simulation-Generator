@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -114,6 +114,42 @@ async def update_content(
 ) -> dict:
     sim_data = body.get("sim_data", body)
     return await generation_service.update_content(db, tenant, simulation_id, sim_data)
+
+
+@router.get("/{simulation_id}/images")
+async def list_images(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    return {"images": await generation_service.list_simulation_images(db, tenant, simulation_id)}
+
+
+@router.post("/{simulation_id}/images")
+async def add_image(
+    simulation_id: uuid.UUID,
+    body: dict = Body(...),
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    from app.services.cloudinary_service import CloudinaryError
+
+    try:
+        return await generation_service.add_simulation_image(
+            db, tenant, simulation_id, body.get("name", ""), body.get("data", "")
+        )
+    except CloudinaryError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.delete("/{simulation_id}/images/{name}")
+async def delete_image(
+    simulation_id: uuid.UUID,
+    name: str,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    return await generation_service.delete_simulation_image(db, tenant, simulation_id, name)
 
 
 @router.get("/{simulation_id}/logs")

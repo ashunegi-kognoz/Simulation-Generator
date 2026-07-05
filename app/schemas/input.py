@@ -35,6 +35,7 @@ class RoleOverview(BaseModel):
     reporting_line: str
     scope: str
     seniority_band: Literal["mid", "senior", "exec", "c_suite"] = "senior"
+    gender: Literal["male", "female", "non_binary", "unspecified"] = "unspecified"
     # Optional free-text brief for this role, typically pasted or uploaded from a
     # .md/.txt file. Capped at ~1 MB of text; fed to role generation as context.
     context: str = Field(default="", max_length=1_000_000)

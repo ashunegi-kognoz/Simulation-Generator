@@ -22,6 +22,7 @@ export interface RoleOverview {
   reporting_line: string;
   scope: string;
   seniority_band: "mid" | "senior" | "exec" | "c_suite";
+  gender?: "male" | "female" | "non_binary" | "unspecified";
   context?: string;
 }
 
@@ -294,4 +295,12 @@ export interface AuthResponse {
   token_type: string;
   email: string;
   tenant_id: string;
+}
+
+// ---- simulation images (Cloudinary-hosted, per-simulation named slots) ----
+export interface SimulationImage {
+  name: string;
+  url: string;
+  content_type: string;
+  created_at: string;
 }
