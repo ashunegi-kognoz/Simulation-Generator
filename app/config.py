@@ -11,7 +11,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     app_env: str = "local"
 
     # --- LLM ---
-    llm_provider: Literal["mock", "openai"] = "mock"
+    llm_provider: Literal["mock", "openai", "claude"] = "mock"
     openai_api_key: str | None = None
     # DECISION: the brief leaves model ids blank in .env.example and says to pick
     # concrete Responses-API-capable ids at build time, read from config. We default
@@ -42,6 +42,24 @@ class Settings(BaseSettings):
     # LLM_PROVIDER=openai these should be set explicitly in the environment.
     llm_model_strong: str = "gpt-4.1"
     llm_model_mid: str = "gpt-4.1-mini"
+
+    # --- Anthropic / Claude (used when LLM_PROVIDER=claude) ---
+    # OpenAI stays configured alongside these; flipping LLM_PROVIDER is all it takes.
+    # Point the strong/mid ids at whichever Claude models you want (e.g. Opus, Fable).
+    anthropic_api_key: str | None = None
+    anthropic_model_strong: str = "claude-opus-4-8"
+    anthropic_model_mid: str = "claude-opus-4-8"
+    anthropic_max_tokens: int = 8192
+
+    @model_validator(mode="after")
+    def _select_active_models(self) -> "Settings":
+        # Keep the pipeline provider-agnostic: it always reads llm_model_strong /
+        # llm_model_mid. When Claude is active, those resolve to the Anthropic ids
+        # (the OpenAI/GPT ids stay configured for when you flip back).
+        if self.llm_provider == "claude":
+            self.llm_model_strong = self.anthropic_model_strong
+            self.llm_model_mid = self.anthropic_model_mid
+        return self
 
     max_concurrency: int = 12
     max_revisions: int = 2

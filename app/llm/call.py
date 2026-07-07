@@ -46,7 +46,7 @@ def _is_transient(exc: Exception) -> bool:
     if any(m in name for m in transient_markers):
         return True
     status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
-    return isinstance(status, int) and status in (408, 409, 429, 500, 502, 503, 504)
+    return isinstance(status, int) and status in (408, 409, 429, 500, 502, 503, 504, 529)
 
 
 async def parse_call(
@@ -92,6 +92,10 @@ def get_provider(settings=None) -> LLMProvider:
         from app.llm.openai_provider import OpenAIProvider
 
         return OpenAIProvider()
+    if settings.llm_provider == "claude":
+        from app.llm.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider()
     from app.llm.mock_provider import MockLLMProvider
 
     return MockLLMProvider()
