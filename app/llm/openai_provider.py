@@ -47,6 +47,7 @@ class OpenAIProvider:
         previous_response_id: str | None = None,
         store: bool = False,
         effort: str | None = None,
+        validation_context: dict | None = None,  # not supported by responses.parse
     ) -> ParsedResult:
         client = self._get_client()
         kwargs: dict[str, Any] = {

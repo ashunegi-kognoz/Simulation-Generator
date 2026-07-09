@@ -88,6 +88,7 @@ class AnthropicProvider:
         previous_response_id: str | None = None,  # OpenAI-only; ignored
         store: bool = False,  # OpenAI-only; ignored
         effort: str | None = None,  # OpenAI-only; ignored
+        validation_context: dict | None = None,
     ) -> ParsedResult:
         settings = get_settings()
         if not settings.anthropic_api_key:
@@ -152,7 +153,7 @@ class AnthropicProvider:
             raise AnthropicError(
                 f"Claude returned invalid JSON for {schema.__name__}: {exc}", status_code=503
             ) from exc
-        parsed = schema.model_validate(payload)
+        parsed = schema.model_validate(payload, context=validation_context)
 
         raw_usage = data.get("usage") or {}
         inp = int(raw_usage.get("input_tokens", 0) or 0)

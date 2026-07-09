@@ -59,6 +59,7 @@ async def parse_call(
     previous_response_id: str | None = None,
     store: bool = False,
     effort: str | None = None,
+    validation_context: dict | None = None,
 ) -> ParsedResult:
     """Call `llm.parse` under the shared semaphore with retry/backoff."""
     sem = _get_semaphore()
@@ -74,6 +75,7 @@ async def parse_call(
                     previous_response_id=previous_response_id,
                     store=store,
                     effort=effort,
+                    validation_context=validation_context,
                 )
             except Exception as exc:  # noqa: BLE001 - normalized below
                 last_exc = exc
