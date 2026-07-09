@@ -29,8 +29,8 @@ def _round(x: float) -> float:
     return round(float(x), 4)
 
 
-def _vec(alloc: Allocation) -> list[float]:
-    return [alloc.units[p] / 100.0 for p in _POSTURES]
+def _vec(alloc: Allocation, keys: list[str]) -> list[float]:
+    return [alloc.units[k] / 100.0 for k in keys]
 
 
 def _tv(p: list[float], q: list[float]) -> float:
@@ -40,16 +40,18 @@ def _tv(p: list[float], q: list[float]) -> float:
 def compute_group_analytics(
     pre_by_member: dict[str, list[Allocation]],
     team_by_decision: list[Allocation],
+    posture_keys: list[str] | None = None,
 ) -> GroupAnalytics:
     """`pre_by_member` maps participant_id -> their pre-discussion allocations;
     `team_by_decision` is the reconciled team allocations (may be empty)."""
+    keys = list(posture_keys) if posture_keys else _POSTURES
     # Index member shares by decision number.
     member_share: dict[int, dict[str, list[float]]] = {}
     for pid, allocs in pre_by_member.items():
         for a in allocs:
-            member_share.setdefault(a.decision_number, {})[pid] = _vec(a)
+            member_share.setdefault(a.decision_number, {})[pid] = _vec(a, keys)
 
-    team_share = {a.decision_number: _vec(a) for a in team_by_decision}
+    team_share = {a.decision_number: _vec(a, keys) for a in team_by_decision}
 
     dispersion: dict[int, float] = {}
     for t, shares in member_share.items():

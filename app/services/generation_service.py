@@ -85,6 +85,7 @@ async def create_simulation(
         tenant_id=tenant_id,
         name=input_data.get("simulation_name", "Untitled"),
         input_jsonb=input_data,
+        engine_version=int(input_data.get("engine_version", 1) or 1),
         status="queued",
     )
     session.add(sim)

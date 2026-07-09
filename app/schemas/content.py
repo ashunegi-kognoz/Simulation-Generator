@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from app.schemas.common import SORTED_POSTURES, Dimension, Posture
 
@@ -79,18 +79,54 @@ class PostureScheme(BaseModel):
     defer_definition: str
 
 
+class DynamicStance(BaseModel):
+    """One of the four per-simulation stances in a v2 (dynamic) type-set."""
+
+    key: str  # stable lowercase slug used for scoring/validation, e.g. "hold_position"
+    label: str  # participant-facing name, e.g. "Hold the Line"
+    definition: str  # what this stance does in THIS simulation
+
+
+class TypeSet(BaseModel):
+    """Engine-v2 dynamic type-set: the four option kinds derived per simulation.
+
+    Generalizes PostureScheme. Instead of the fixed Protect/Enable/Hybrid/Defer
+    keys, the model derives the core tension the simulation teaches and the four
+    competing stances that resolve it — each with its own key, label, and
+    definition. Every decision then presents one option per stance key.
+    """
+
+    inferred_category: str
+    learning_tension: str  # the core trade-off this simulation teaches
+    stances: list[DynamicStance] = Field(min_length=4, max_length=4)
+
+    @field_validator("stances")
+    @classmethod
+    def _distinct_keys(cls, value: list[DynamicStance]) -> list[DynamicStance]:
+        keys = [s.key for s in value]
+        if len(set(keys)) != len(keys):
+            raise ValueError("type-set stance keys must be distinct")
+        return value
+
+
 class CommonData(BaseModel):
     allocation_room_data: str
     business_landscape: str
     business_priorities: list[str] = Field(min_length=5, max_length=5)
     crisis_data: str
     reflection_board_helping_data: str
+    # Optional: simulations generated before the posture-scheme feature won't have
+    # one. New generations always produce it (prompt + mock), but editing/saving an
+    # older simulation must not fail schema validation because it's absent.
     posture_scheme: PostureScheme | None = None
+    # Engine-v2 only: the per-simulation dynamic type-set. None on v1 (fixed-posture)
+    # simulations, which use posture_scheme instead.
+    type_set: TypeSet | None = None
 
 
 # ---------- DECISION / CONTENT (canonical; positions shuffled at render) ----------
 class Option(BaseModel):
-    posture: Posture
+    posture: str  # v1: Protect/Enable/Hybrid/Defer; v2: the sim's declared stance key
     label: str
     content: str  # action + consequence + explicit trade-off
 
@@ -104,12 +140,19 @@ class Decision(BaseModel):
 
     @field_validator("options")
     @classmethod
-    def one_per_posture(cls, v: list[Option]) -> list[Option]:
-        postures = sorted(o.posture for o in v)
-        # DECISION: brief uses `assert`; we raise ValueError so the rule survives
-        # `python -O` and surfaces as a clean 422 at the API boundary.
-        if postures != SORTED_POSTURES:
-            raise ValueError("need exactly one of each posture")
+    def one_per_posture(cls, v: list[Option], info: ValidationInfo) -> list[Option]:
+        postures = [o.posture for o in v]
+        # Structural backbone (engine-agnostic): exactly four options, four distinct
+        # postures. This holds for both v1 (fixed) and v2 (dynamic) simulations.
+        if len(postures) != 4 or len(set(postures)) != 4:
+            raise ValueError("a decision needs exactly four options with four distinct postures")
+        # Which four keys are allowed depends on the engine. Engine-v2 generation passes
+        # the simulation's declared type-set keys via validation context; v1 (and any
+        # validation without context) requires the canonical Protect/Enable/Hybrid/Defer.
+        allowed = (info.context or {}).get("allowed_postures") if info and info.context else None
+        expected = sorted(allowed) if allowed is not None else SORTED_POSTURES
+        if sorted(postures) != expected:
+            raise ValueError("options must use exactly the simulation's declared postures")
         return v
 
 

@@ -29,6 +29,7 @@ from app.pipeline.assemble import (
     shuffle_positions,
 )
 from app.pipeline.common import common_content
+from app.pipeline.type_set import generate_type_set
 from app.pipeline.decisions import build_decisions
 from app.pipeline.normalize import CanonicalSpec, Checkpointer, InMemoryCheckpointer, ParticipantSpec, TeamSpec
 from app.pipeline.reduce import consistency_auditor, editorial_gate, safety_gate
@@ -71,6 +72,7 @@ async def generate_with_audit(
     spec: CanonicalSpec,
     llm: LLMProvider,
     checkpoint: Checkpointer | None = None,
+    engine_version: int = 1,
 ) -> tuple[SimulationOutput, GenerationAudit]:
     settings = get_settings()
     cp = checkpoint or InMemoryCheckpointer()
@@ -89,6 +91,24 @@ async def generate_with_audit(
         common = await common_content(spec, bible, llm)
         cp.save("common", common)
 
+    # Engine-v2: derive the per-simulation type-set (learning tension + four dynamic
+    # stances) and attach it to common. Its keys drive both decision generation
+    # (one option per stance, validated against the keys) and scoring. v1 leaves
+    # posture_keys/stances None, so build_decisions keeps the canonical four.
+    posture_keys: list[str] | None = None
+    stances = None
+    if engine_version >= 2:
+        if cp.has("type_set"):
+            type_set = cp.load("type_set")
+        else:
+            type_set = await generate_type_set(
+                spec.subject_matter, spec.business_context, llm
+            )
+            cp.save("type_set", type_set)
+        common.type_set = type_set
+        posture_keys = [s.key for s in type_set.stances]
+        stances = list(type_set.stances)
+
     # --- Tier 2: Fan-out ---
     async def build_participant(p: ParticipantSpec) -> ParticipantBuildResult:
         node = f"participant:{p.participant_id}"
@@ -99,7 +119,7 @@ async def generate_with_audit(
         rounds: dict[int, RoundParticipantContent] = {}
         for rp in p.individual_rounds:
             blob = _context_blob(bible, role_sit.role_data, role_sit.situation_data, ctx_json)
-            build = await build_decisions(blob, rp.dimensions, llm)
+            build = await build_decisions(blob, rp.dimensions, llm, posture_keys, stances)
             rounds[rp.index] = RoundParticipantContent(
                 situation_data=role_sit.situation_data,
                 decision_board=build.decisions,
@@ -122,7 +142,7 @@ async def generate_with_audit(
         # in a group round (postures still hidden until debrief).
         team_ctx_json = t.members[0].context.model_dump_json() if t.members else ""
         team_blob = _context_blob(bible, "team cluster", scenario, team_ctx_json)
-        team_build = await build_decisions(team_blob, t.dimensions, llm)
+        team_build = await build_decisions(team_blob, t.dimensions, llm, posture_keys, stances)
         members: dict[str, MemberBuildContent] = {}
         for member in t.members:
             situation = await member_situation(member.context, scenario, bible, llm)
@@ -175,9 +195,10 @@ async def generate_simulation(
     spec: CanonicalSpec,
     llm: LLMProvider,
     checkpoint: Checkpointer | None = None,
+    engine_version: int = 1,
 ) -> SimulationOutput:
     """Public entry point matching the Section 8.5 signature."""
-    sim, _ = await generate_with_audit(spec, llm, checkpoint)
+    sim, _ = await generate_with_audit(spec, llm, checkpoint, engine_version)
     return sim
 
 

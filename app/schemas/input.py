@@ -101,6 +101,8 @@ class SimulationInput(BaseModel):
     business_context: str
     subject_matter: str
     participant_count: int = Field(ge=1, le=20)
+    # 1 = allocation + fixed postures (default); 2 = allocation + dynamic type-set
+    engine_version: int = Field(default=1, ge=1, le=2)
     rounds: list[RoundSpec]
     role_overview: list[RoleOverview]
     kpi_critical_tradeoff: list[KpiTradeoff]

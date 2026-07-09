@@ -175,7 +175,10 @@ async def submit_allocation(
 
     # Resolve letters -> postures. Allocation() validates the 0..100 / sum==100 rule.
     posture_units = {position_map[letter]: units for letter, units in letter_units.items()}
-    allocation = Allocation(decision_number=decision_number, units=posture_units)
+    allocation = Allocation.model_validate(
+        {"decision_number": decision_number, "units": posture_units},
+        context={"allowed_postures": list(posture_units.keys())},
+    )
 
     # Replace any prior submission for this decision (idempotent re-submit).
     await session.execute(
@@ -237,4 +240,10 @@ async def load_allocations(
             .order_by(AllocationRecord.decision_number)
         )
     ).scalars().all()
-    return [Allocation(decision_number=r.decision_number, units=r.units_jsonb) for r in rows]
+    return [
+        Allocation.model_validate(
+            {"decision_number": r.decision_number, "units": r.units_jsonb},
+            context={"allowed_postures": list((r.units_jsonb or {}).keys())},
+        )
+        for r in rows
+    ]

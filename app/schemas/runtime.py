@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ValidationInfo, field_validator
 
 from app.schemas.common import POSTURE_SET, Dimension, Posture
 
@@ -33,19 +33,27 @@ class RenderedDecision(BaseModel):
 # ---------- RUNTIME CAPTURE ----------
 class Allocation(BaseModel):
     decision_number: int
-    units: dict[Posture, int]  # keys after resolving the position map
+    units: dict[str, int]  # keys after resolving the position map
 
     @field_validator("units")
     @classmethod
-    def sums_to_100(cls, v: dict[str, int]) -> dict[str, int]:
+    def sums_to_100(cls, v: dict[str, int], info: ValidationInfo) -> dict[str, int]:
         # DECISION: brief uses `assert`; raise ValueError so 422s are produced
         # reliably regardless of optimization flags.
-        if set(v) != POSTURE_SET:
-            raise ValueError("need all four postures")
+        if len(v) != 4:
+            raise ValueError("need exactly four postures")
         if not all(0 <= x <= 100 for x in v.values()):
             raise ValueError("units in 0..100")
         if sum(v.values()) != 100:
             raise ValueError("units must sum to 100")
+        # Canonical four by default (v1); the sim's declared keys when passed via
+        # validation context (v2).
+        allowed = (info.context or {}).get("allowed_postures") if info and info.context else None
+        if allowed is not None:
+            if set(v) != set(allowed):
+                raise ValueError("units must use the simulation's declared postures")
+        elif set(v) != POSTURE_SET:
+            raise ValueError("need all four postures")
         return v
 
 

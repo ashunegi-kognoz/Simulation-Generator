@@ -37,6 +37,8 @@ from app.schemas.content import (
     kv_int,
     BalanceReport,
     CommonData,
+    DynamicStance,
+    TypeSet,
     PostureScheme,
     ConsistencyReport,
     Decision,
@@ -108,22 +110,36 @@ def _pad_to_words(text: str, n: int) -> str:
 
 def _option(rng: random.Random, posture: str, name: str) -> Option:
     n0, n1, _ = _numbers(rng)
-    stem = _OPTION_STEMS[posture].format(n0=n0, n1=n1, name=name)
+    stem_tpl = _OPTION_STEMS.get(
+        posture, "Commit the {name} account to the {p} path, moving ~{n0} and holding ~{n1}"
+    )
+    stem = stem_tpl.format(n0=n0, n1=n1, name=name, p=posture.replace("_", " "))
     tail = _OPTION_TAIL.format(n0=n0)
     content = _pad_to_words(f"{stem}; {tail}.", 30)  # exact-30 keeps options parity-clean
     return Option(posture=posture, label=f"{posture} option", content=content)
 
 
-def _decision(rng: random.Random, number: int, dimension: str, name: str) -> Decision:
-    options = [_option(rng, p, name) for p in _POSTURES]
+def _decision(
+    rng: random.Random, number: int, dimension: str, name: str, posture_keys=None
+) -> Decision:
+    keys = posture_keys or _POSTURES
+    options = [_option(rng, p, name) for p in keys]
     title = f"Decision {number}: a {dimension.lower()} call on the {name.split()[0]} account"
     question = {
         "MOVE": "Where do we push, and how hard?",
         "HOLD": "What do we protect, and at what cost?",
         "FRAME": "How do we define and sequence this, and who comes in?",
     }[dimension]
-    return Decision(
-        decision_number=number, dimension=dimension, title=title, question=question, options=options
+    ctx = {"allowed_postures": list(keys)} if posture_keys else None
+    return Decision.model_validate(
+        {
+            "decision_number": number,
+            "dimension": dimension,
+            "title": title,
+            "question": question,
+            "options": options,
+        },
+        context=ctx,
     )
 
 
@@ -306,6 +322,7 @@ class MockLLMProvider:
         previous_response_id: str | None = None,
         store: bool = False,
         effort: str | None = None,
+        validation_context: dict | None = None,
     ) -> ParsedResult:
         name = schema.__name__
         self.call_counts[name] = self.call_counts.get(name, 0) + 1
@@ -322,14 +339,20 @@ class MockLLMProvider:
             dims = dims_hint.split(",") if dims_hint else list(_DIMENSIONS)
             dims = [d.strip() for d in dims if d.strip() in _DIMENSIONS] or list(_DIMENSIONS)
             name_pick = rng.choice(_NAMES)
-            decisions = [_decision(rng, i + 1, d, name_pick) for i, d in enumerate(dims)]
+            pk_hint = _hint(input, "POSTURE_KEYS")
+            posture_keys = [k.strip() for k in pk_hint.split(",")] if pk_hint else None
+            decisions = [
+                _decision(rng, i + 1, d, name_pick, posture_keys) for i, d in enumerate(dims)
+            ]
             parsed = DecisionSet(decisions=decisions)
         elif schema is Decision:
             dim = (_hint(input, "DIMENSION") or "MOVE").strip()
             dim = dim if dim in _DIMENSIONS else "MOVE"
             num_hint = _hint(input, "DECISION_NUMBER")
             number = int(num_hint) if num_hint and num_hint.isdigit() else 1
-            parsed = _decision(rng, number, dim, rng.choice(_NAMES))
+            pk_hint = _hint(input, "POSTURE_KEYS")
+            posture_keys = [k.strip() for k in pk_hint.split(",")] if pk_hint else None
+            parsed = _decision(rng, number, dim, rng.choice(_NAMES), posture_keys)
         elif schema is RoleSituation:
             parsed = RoleSituation(
                 role_data=_pad_to_words(
@@ -353,6 +376,36 @@ class MockLLMProvider:
             parsed = ConsistencyReport(contradictions=[])
         elif schema is Debrief:
             parsed = _debrief(input, rng)
+        elif schema is TypeSet:
+            parsed = TypeSet(
+                inferred_category="Strategy",
+                learning_tension=(
+                    "balancing near-term protection of the current position against investing to "
+                    "expand capacity, under a hard resource constraint"
+                ),
+                stances=[
+                    DynamicStance(
+                        key="hold_position",
+                        label="Hold the Line",
+                        definition="Defend the current operating position and the commitments that depend on it.",
+                    ),
+                    DynamicStance(
+                        key="build_capacity",
+                        label="Open the Field",
+                        definition="Reallocate resources to expand shared or enterprise-wide capacity.",
+                    ),
+                    DynamicStance(
+                        key="run_dual_track",
+                        label="Run Both Tracks",
+                        definition="Pursue protection and expansion at once, absorbing the coordination cost.",
+                    ),
+                    DynamicStance(
+                        key="gate_on_review",
+                        label="Hold and Revisit",
+                        definition="Postpone the commitment behind an explicit trigger or higher authority.",
+                    ),
+                ],
+            )
         else:
             parsed = _generic_instance(schema, rng)
 

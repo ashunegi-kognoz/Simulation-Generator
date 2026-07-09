@@ -30,7 +30,10 @@ async def reconcile_team(
 ) -> GroupAnalyticsResponse:
     # Validates the posture-keyed team allocations (sum==100, all four postures).
     team_allocations = [
-        Allocation(decision_number=item.decision_number, units=item.units)
+        Allocation.model_validate(
+            {"decision_number": item.decision_number, "units": item.units},
+            context={"allowed_postures": list(item.units.keys())},
+        )
         for item in body.allocations
     ]
     analytics = await scoring_service.compute_and_store_group_analytics(

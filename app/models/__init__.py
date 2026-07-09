@@ -77,6 +77,12 @@ class Simulation(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     input_jsonb: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    # Generation engine that built this simulation:
+    #   1 = allocation + fixed four postures (Protect/Enable/Hybrid/Defer) [legacy]
+    #   2 = allocation + per-simulation dynamic type-set derived from the subject matter
+    engine_version: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1", nullable=False
+    )
     # status in: queued | generating | needs_review | ready | failed
     status: Mapped[str] = mapped_column(String(32), default="queued", nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

@@ -18,6 +18,7 @@ from app.models import (
     GroupAnalyticsRecord,
     Participant,
     Session,
+    SimulationVersion,
     Simulation,
     Team,
 )
@@ -46,6 +47,26 @@ async def _participant_decision_objects(
     return [Decision(**r.decision_jsonb) for r in rows]
 
 
+
+async def _load_posture_keys(
+    session: AsyncSession, simulation_version_id: uuid.UUID
+) -> list[str] | None:
+    """v2 sims store a dynamic type-set on common_data; return its keys (None on v1)."""
+    row = (
+        await session.execute(
+            select(SimulationVersion).where(SimulationVersion.id == simulation_version_id)
+        )
+    ).scalars().first()
+    if row is None:
+        return None
+    common = (row.sim_data_jsonb or {}).get("common_data") or {}
+    type_set = common.get("type_set")
+    if not type_set:
+        return None
+    keys = [st.get("key") for st in type_set.get("stances", []) if st.get("key")]
+    return keys or None
+
+
 async def compute_and_store_fingerprint(
     session: AsyncSession, tenant_id: uuid.UUID, session_id: uuid.UUID
 ) -> PostureFingerprint:
@@ -56,7 +77,8 @@ async def compute_and_store_fingerprint(
     decisions = await _participant_decision_objects(
         session, sess.simulation_version_id, participant.external_ref
     )
-    fingerprint = score(allocations, decisions)
+    posture_keys = await _load_posture_keys(session, sess.simulation_version_id)
+    fingerprint = score(allocations, decisions, posture_keys=posture_keys)
 
     await session.execute(
         delete(FingerprintRecord).where(FingerprintRecord.session_id == session_id)
@@ -96,6 +118,7 @@ async def compute_and_store_group_analytics(
 
     member_uuids = [uuid.UUID(x) for x in team.participant_ids_jsonb]
     pre_by_member: dict[str, list[Allocation]] = {}
+    _version_id: uuid.UUID | None = None
     for member_uuid in member_uuids:
         participant = (
             await session.execute(select(Participant).where(Participant.id == member_uuid))
@@ -109,11 +132,17 @@ async def compute_and_store_group_analytics(
         ).scalars().all()
         allocs: list[Allocation] = []
         for ms in member_sessions:
+            _version_id = ms.simulation_version_id
             allocs.extend(await load_allocations(session, ms.id, "individual"))
         if allocs:
             pre_by_member[participant.external_ref] = allocs
 
-    analytics = compute_group_analytics(pre_by_member, team_allocations)
+    posture_keys = (
+        await _load_posture_keys(session, _version_id) if _version_id else None
+    )
+    analytics = compute_group_analytics(
+        pre_by_member, team_allocations, posture_keys=posture_keys
+    )
     await session.execute(
         delete(GroupAnalyticsRecord).where(GroupAnalyticsRecord.team_id == team_id)
     )

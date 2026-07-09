@@ -5,6 +5,7 @@ import type {
   PostureScheme,
   SimContent,
   SimContentDecision,
+  TypeSet,
 } from "../../api/types";
 import { Banner, Panel, Spinner } from "../../components/ui";
 import { cn } from "../../lib/cn";
@@ -30,21 +31,42 @@ function setIn(obj: unknown, path: Path, value: string): unknown {
   return clone;
 }
 
-function labelFor(posture: Posture, scheme?: PostureScheme): string {
-  if (!scheme) return posture;
-  const map: Record<Posture, string> = {
-    Protect: scheme.protect_label,
-    Enable: scheme.enable_label,
-    Hybrid: scheme.hybrid_label,
-    Defer: scheme.defer_label,
-  };
-  return map[posture] || posture;
+const STANCE_STYLES = [
+  "bg-petrol-soft text-petrol",
+  "bg-grass-soft text-grass",
+  "bg-amber-soft text-amber",
+  "bg-canvas text-muted",
+];
+
+function resolveStance(
+  posture: string,
+  scheme?: PostureScheme,
+  typeSet?: TypeSet,
+): { label: string; cls: string } {
+  if (typeSet) {
+    const idx = typeSet.stances.findIndex((st) => st.key === posture);
+    if (idx >= 0) {
+      return { label: typeSet.stances[idx].label, cls: STANCE_STYLES[idx % STANCE_STYLES.length] };
+    }
+  }
+  const cls = POSTURE_STYLE[posture as Posture] ?? "bg-canvas text-muted";
+  if (scheme) {
+    const map: Record<string, string> = {
+      Protect: scheme.protect_label,
+      Enable: scheme.enable_label,
+      Hybrid: scheme.hybrid_label,
+      Defer: scheme.defer_label,
+    };
+    return { label: map[posture] || posture, cls };
+  }
+  return { label: posture, cls };
 }
 
-function PostureTag({ posture, scheme }: { posture: Posture; scheme?: PostureScheme }) {
+function PostureTag({ posture, scheme, typeSet }: { posture: string; scheme?: PostureScheme; typeSet?: TypeSet }) {
+  const { label, cls } = resolveStance(posture, scheme, typeSet);
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", POSTURE_STYLE[posture])}>
-      {labelFor(posture, scheme)}
+    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", cls)}>
+      {label}
     </span>
   );
 }
@@ -98,12 +120,14 @@ function Field({
 function DecisionBoard({
   decisions,
   scheme,
+  typeSet,
   editing,
   set,
   basePath,
 }: {
   decisions: SimContentDecision[];
   scheme?: PostureScheme;
+  typeSet?: TypeSet;
   editing: boolean;
   set: SetFn;
   basePath: Path;
@@ -151,7 +175,7 @@ function DecisionBoard({
                   ) : (
                     <span className="num text-xs font-semibold text-ink">{o.label}</span>
                   )}
-                  <PostureTag posture={o.posture} scheme={scheme} />
+                  <PostureTag posture={o.posture} scheme={scheme} typeSet={typeSet} />
                 </div>
                 {editing ? (
                   <textarea
@@ -175,12 +199,14 @@ function RoundBlock({
   roundKey,
   round,
   scheme,
+  typeSet,
   editing,
   set,
 }: {
   roundKey: string;
   round: SimContent["rounds"][string];
   scheme?: PostureScheme;
+  typeSet?: TypeSet;
   editing: boolean;
   set: SetFn;
 }) {
@@ -219,7 +245,7 @@ function RoundBlock({
                     <div className="eyebrow mb-1.5">Decision board</div>
                     <DecisionBoard
                       decisions={p.decision_board}
-                      scheme={scheme}
+                      scheme={scheme} typeSet={typeSet}
                       editing={editing}
                       set={set}
                       basePath={[...pPath, "decision_board"]}
@@ -271,7 +297,7 @@ function RoundBlock({
                           <div className="eyebrow mb-1.5">Decision board</div>
                           <DecisionBoard
                             decisions={m.decision_board}
-                            scheme={scheme}
+                            scheme={scheme} typeSet={typeSet}
                             editing={editing}
                             set={set}
                             basePath={[...mPath, "decision_board"]}
@@ -519,7 +545,7 @@ export function EntriesSection({
       )}
 
       {Object.entries(view.rounds).map(([k, r]) => (
-        <RoundBlock key={k} roundKey={k} round={r} scheme={ps} editing={editing} set={set} />
+        <RoundBlock key={k} roundKey={k} round={r} scheme={ps} typeSet={c.type_set} editing={editing} set={set} />
       ))}
     </div>
   );

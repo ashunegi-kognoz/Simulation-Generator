@@ -7,6 +7,17 @@ export type Letter = "A" | "B" | "C" | "D";
 export const LETTERS: Letter[] = ["A", "B", "C", "D"];
 export const POSTURES: Posture[] = ["Protect", "Enable", "Hybrid", "Defer"];
 
+export interface DynamicStance {
+  key: string;
+  label: string;
+  definition: string;
+}
+export interface TypeSet {
+  inferred_category: string;
+  learning_tension: string;
+  stances: DynamicStance[];
+}
+
 export type SimulationStatus =
   | "queued"
   | "generating"
@@ -136,15 +147,15 @@ export interface Commitment {
 
 // ---- scoring / debrief ----
 export interface PostureFingerprint {
-  overall: Record<Posture, number>;
-  by_dimension: Record<Dimension, Record<Posture, number>>;
+  overall: Record<string, number>;
+  by_dimension: Record<Dimension, Record<string, number>>;
   decisiveness: number;
   consistency: number;
   dimension_sensitivity: number;
-  protect_index: number;
-  enable_index: number;
-  hybrid_index: number;
-  defer_index: number;
+  protect_index?: number | null;
+  enable_index?: number | null;
+  hybrid_index?: number | null;
+  defer_index?: number | null;
   reliability: "low" | "moderate" | "high";
   n_decisions: number;
 }
@@ -183,7 +194,7 @@ export interface SimulationListItem {
 }
 
 export interface SimContentOption {
-  posture: Posture;
+  posture: string;
   label: string;
   content: string;
 }
@@ -224,6 +235,7 @@ export interface SimContent {
     crisis_data: string;
     reflection_board_helping_data: string;
     posture_scheme?: PostureScheme;
+    type_set?: TypeSet;
   };
   rounds: Record<string, SimContentRound>;
 }

@@ -11,15 +11,17 @@ from app.schemas.common import Dimension, Posture
 
 
 class PostureFingerprint(BaseModel):
-    overall: dict[Posture, float]
-    by_dimension: dict[Dimension, dict[Posture, float]]
+    overall: dict[str, float]
+    by_dimension: dict[Dimension, dict[str, float]]
     decisiveness: float
     consistency: float
     dimension_sensitivity: float
-    protect_index: float
-    enable_index: float
-    hybrid_index: float
-    defer_index: float
+    # Convenience accessors, populated only for canonical (v1) simulations; None on
+    # v2 (dynamic-key) simulations, which read `overall` by the sim's declared keys.
+    protect_index: float | None = None
+    enable_index: float | None = None
+    hybrid_index: float | None = None
+    defer_index: float | None = None
     reliability: Literal["low", "moderate", "high"]
     n_decisions: int
 

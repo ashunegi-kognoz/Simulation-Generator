@@ -61,6 +61,21 @@ class Settings(BaseSettings):
             self.llm_model_mid = self.anthropic_model_mid
         return self
 
+    @model_validator(mode="after")
+    def _guard_jwt_secret(self) -> "Settings":
+        # Fail loudly instead of silently booting with an insecure JWT secret in a
+        # non-dev environment. In prod, set JWT_SECRET to a strong, unique value.
+        dev_envs = {"local", "test", "dev", "development", "ci"}
+        insecure = {"", "dev-insecure-change-me-please"}
+        if self.app_env.lower() not in dev_envs and self.jwt_secret in insecure:
+            raise ValueError(
+                "JWT_SECRET must be set to a strong, unique value when APP_ENV is not "
+                f"local/test (APP_ENV={self.app_env!r}); refusing to start with the "
+                'insecure default. Generate one: python -c "import secrets; '
+                'print(secrets.token_urlsafe(48))"'
+            )
+        return self
+
     max_concurrency: int = 12
     max_revisions: int = 2
     balance_threshold: int = 25

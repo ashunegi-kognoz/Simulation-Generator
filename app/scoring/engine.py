@@ -37,8 +37,8 @@ def _round(x: float) -> float:
     return round(float(x), 4)
 
 
-def _share_vector(alloc: Allocation) -> list[float]:
-    return [alloc.units[p] / 100.0 for p in _POSTURES]
+def _share_vector(alloc: Allocation, keys: list[str]) -> list[float]:
+    return [alloc.units[k] / 100.0 for k in keys]
 
 
 def _entropy_log4(vec: list[float]) -> float:
@@ -53,14 +53,21 @@ def _tv(p: list[float], q: list[float]) -> float:
     return 0.5 * sum(abs(a - b) for a, b in zip(p, q))
 
 
-def _mean_vectors(vectors: list[list[float]]) -> dict:
+def _mean_vectors(vectors: list[list[float]], keys: list[str]) -> dict:
     n = len(vectors)
     return {
-        _POSTURES[i]: _round(sum(v[i] for v in vectors) / n) for i in range(len(_POSTURES))
+        keys[i]: _round(sum(v[i] for v in vectors) / n) for i in range(len(keys))
     }
 
 
-def score(allocations: list[Allocation], decisions: list[Decision]) -> PostureFingerprint:
+def score(
+    allocations: list[Allocation],
+    decisions: list[Decision],
+    posture_keys: list[str] | None = None,
+) -> PostureFingerprint:
+    # v1 (and any call without keys) uses the canonical four; v2 passes the sim's
+    # declared type-set keys, which set the vector order for all the math below.
+    keys = list(posture_keys) if posture_keys else _POSTURES
     dim_by_number = {d.decision_number: d.dimension for d in decisions}
 
     # Join allocations to their decision dimension; keep share vectors.
@@ -69,19 +76,19 @@ def score(allocations: list[Allocation], decisions: list[Decision]) -> PostureFi
     for a in allocations:
         if a.decision_number not in dim_by_number:
             raise ValueError(f"allocation references unknown decision {a.decision_number}")
-        vectors.append(_share_vector(a))
+        vectors.append(_share_vector(a, keys))
         dims.append(dim_by_number[a.decision_number])
 
     n = len(vectors)
     if n == 0:
         raise ValueError("cannot score zero allocations")
 
-    overall = _mean_vectors(vectors)
+    overall = _mean_vectors(vectors, keys)
 
     by_dimension: dict[str, dict] = {}
     for dim in set(dims):
         dim_vecs = [v for v, dd in zip(vectors, dims) if dd == dim]
-        by_dimension[dim] = _mean_vectors(dim_vecs)
+        by_dimension[dim] = _mean_vectors(dim_vecs, keys)
 
     decisiveness = _round(sum(1.0 - _entropy_log4(v) for v in vectors) / n)
 
@@ -94,7 +101,7 @@ def score(allocations: list[Allocation], decisions: list[Decision]) -> PostureFi
     if len(by_dimension) < 2:
         dimension_sensitivity = 0.0
     else:
-        profiles = [[prof[p] for p in _POSTURES] for prof in by_dimension.values()]
+        profiles = [[prof[k] for k in keys] for prof in by_dimension.values()]
         pair_tvs = [_tv(a, b) for a, b in combinations(profiles, 2)]
         dimension_sensitivity = _round(sum(pair_tvs) / len(pair_tvs))
 
@@ -107,16 +114,17 @@ def score(allocations: list[Allocation], decisions: list[Decision]) -> PostureFi
     else:
         reliability = "low"
 
+    canonical = set(keys) == set(_POSTURES)
     return PostureFingerprint(
         overall=overall,
         by_dimension=by_dimension,
         decisiveness=decisiveness,
         consistency=consistency,
         dimension_sensitivity=dimension_sensitivity,
-        protect_index=overall["Protect"],
-        enable_index=overall["Enable"],
-        hybrid_index=overall["Hybrid"],
-        defer_index=overall["Defer"],
+        protect_index=overall["Protect"] if canonical else None,
+        enable_index=overall["Enable"] if canonical else None,
+        hybrid_index=overall["Hybrid"] if canonical else None,
+        defer_index=overall["Defer"] if canonical else None,
         reliability=reliability,
         n_decisions=n,
     )

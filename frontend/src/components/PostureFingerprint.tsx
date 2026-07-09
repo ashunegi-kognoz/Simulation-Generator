@@ -5,11 +5,11 @@ import {
   RadarChart,
   ResponsiveContainer,
 } from "recharts";
-import type { PostureFingerprint as Fingerprint, Posture } from "../api/types";
-import { POSTURES } from "../api/types";
+import type { PostureFingerprint as Fingerprint } from "../api/types";
 import { Stat } from "./ui";
 
-const POSTURE_COLOR: Record<Posture, string> = {
+const FALLBACK_COLORS = ["#2F6BD6", "#15A06A", "#C98A00", "#5A6675"];
+const POSTURE_COLOR: Record<string, string> = {
   Protect: "#2F6BD6",
   Enable: "#15A06A",
   Hybrid: "#7C58D6",
@@ -19,17 +19,17 @@ const POSTURE_COLOR: Record<Posture, string> = {
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 export function PostureFingerprintView({ fingerprint }: { fingerprint: Fingerprint }) {
-  const radarData = POSTURES.map((p) => ({
+  const keys = Object.keys(fingerprint.overall);
+  const radarData = keys.map((p) => ({
     posture: p,
     share: Math.round((fingerprint.overall[p] ?? 0) * 100),
   }));
 
-  const indices: { posture: Posture; value: number }[] = [
-    { posture: "Protect", value: fingerprint.protect_index },
-    { posture: "Enable", value: fingerprint.enable_index },
-    { posture: "Hybrid", value: fingerprint.hybrid_index },
-    { posture: "Defer", value: fingerprint.defer_index },
-  ];
+  // overall[key] == *_index for canonical sims and is defined for dynamic ones too.
+  const indices: { posture: string; value: number }[] = keys.map((p) => ({
+    posture: p,
+    value: fingerprint.overall[p] ?? 0,
+  }));
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -57,7 +57,7 @@ export function PostureFingerprintView({ fingerprint }: { fingerprint: Fingerpri
       <div>
         <div className="eyebrow mb-3">Posture indices</div>
         <div className="space-y-3">
-          {indices.map((row) => (
+          {indices.map((row, i) => (
             <div key={row.posture}>
               <div className="mb-1 flex items-center justify-between text-xs">
                 <span className="font-medium text-ink">{row.posture}</span>
@@ -68,7 +68,7 @@ export function PostureFingerprintView({ fingerprint }: { fingerprint: Fingerpri
                   className="h-full rounded-full"
                   style={{
                     width: `${Math.max(0, Math.min(100, row.value * 100))}%`,
-                    backgroundColor: POSTURE_COLOR[row.posture],
+                    backgroundColor: POSTURE_COLOR[row.posture] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length],
                   }}
                 />
               </div>

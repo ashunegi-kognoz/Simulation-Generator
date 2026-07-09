@@ -198,7 +198,9 @@ async def process_job(session: AsyncSession, job: Job, provider: LLMProvider) ->
         # release the DB connection before long-running LLM generation so an
         # idle checked-out connection is not closed mid-job.
         await session.commit()
-        sim_out, audit = await generate_with_audit(spec, provider, checkpoint)
+        sim_out, audit = await generate_with_audit(
+            spec, provider, checkpoint, engine_version=sim.engine_version
+        )
         await checkpoint.flush(session)
 
         needs_review = audit.needs_review

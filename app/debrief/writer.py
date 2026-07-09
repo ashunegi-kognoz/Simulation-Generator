@@ -33,10 +33,10 @@ def _underfunded(fp: PostureFingerprint) -> list[str]:
     return [posture for posture, _ in ordered[:2]]
 
 
-def _allocations_block(allocations: list[Allocation]) -> str:
+def _allocations_block(allocations: list[Allocation], keys: list[str]) -> str:
     lines = []
     for a in sorted(allocations, key=lambda x: x.decision_number):
-        parts = ", ".join(f"{k}={a.units[k]}" for k in ("Protect", "Enable", "Hybrid", "Defer"))
+        parts = ", ".join(f"{k}={a.units.get(k, 0)}" for k in keys)
         lines.append(f"decision {a.decision_number}: {parts}")
     return "\n".join(lines)
 
@@ -48,9 +48,10 @@ def _build_input(
     real_numbers: list[int],
     underfunded: list[str],
 ) -> str:
+    keys = list(fp.overall.keys())
     return (
         "ALLOCATIONS:\n"
-        f"{_allocations_block(allocations)}\n\n"
+        f"{_allocations_block(allocations, keys)}\n\n"
         f"FINGERPRINT_OVERALL={fp.overall}\n"
         f"RELIABILITY={fp.reliability}\n"
         f"DECISIVENESS={fp.decisiveness}\n"
@@ -61,13 +62,23 @@ def _build_input(
     )
 
 
-def _is_grounded(debrief: Debrief, real_numbers: set[int], underfunded: list[str]) -> bool:
+def _is_grounded(
+    debrief: Debrief,
+    real_numbers: set[int],
+    underfunded: list[str],
+    lexicon: dict | None = None,
+) -> bool:
     if not debrief.cited_decisions:
         return False
     if not set(debrief.cited_decisions).issubset(real_numbers):
         return False
     blind = debrief.blind_spot.lower()
-    return any(p.lower() in blind for p in underfunded)
+    terms = list(underfunded)
+    for k in underfunded:
+        entry = (lexicon or {}).get(k)
+        if isinstance(entry, dict) and entry.get("label"):
+            terms.append(entry["label"])
+    return any(t.lower() in blind for t in terms)
 
 
 async def write_debrief(
@@ -92,7 +103,7 @@ async def write_debrief(
             store=False,
         )
         debrief = cast(Debrief, res.output_parsed)
-        if _is_grounded(debrief, set(real_numbers), underfunded):
+        if _is_grounded(debrief, set(real_numbers), underfunded, lexicon):
             return debrief
 
     logger.warning(

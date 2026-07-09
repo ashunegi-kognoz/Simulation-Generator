@@ -44,6 +44,30 @@ async def list_simulations(
     return {"simulations": await generation_service.list_simulations(db, tenant)}
 
 
+@router.post("/type-set-preview")
+async def type_set_preview(
+    body: dict = Body(...),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    """Preview the engine-v2 dynamic type-set for a given subject/context (no sim needed)."""
+    from app.config import get_settings
+    from app.llm.call import LLMError, get_provider
+    from app.pipeline.type_set import generate_type_set
+
+    subject_matter = (body.get("subject_matter") or "").strip()
+    business_context = (body.get("business_context") or "").strip()
+    if not subject_matter and not business_context:
+        raise HTTPException(
+            status_code=400, detail="subject_matter or business_context is required."
+        )
+    llm = get_provider(get_settings())
+    try:
+        type_set = await generate_type_set(subject_matter, business_context, llm)
+    except LLMError as exc:
+        raise HTTPException(status_code=502, detail=f"Type-set generation failed: {exc}") from exc
+    return type_set.model_dump()
+
+
 @router.post("/parse-role")
 async def parse_role(
     body: dict = Body(...),
