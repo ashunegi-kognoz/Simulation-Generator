@@ -276,6 +276,22 @@ async def generate_with_audit(
     # yields readable progress, and (with the runner's incremental checkpoint
     # flush) makes a crash at participant N resume at N, not zero. The semaphore
     # still caps total in-flight LLM calls.
+    # Derive every round's decision focuses ONCE, sequentially, before the
+    # concurrent fan-out. Without this, participants in the same wave race the
+    # focus checkpoint and can each derive a different set (breaking cross-
+    # participant comparability of the by-focus scoring).
+    if spec.participants:
+        for rp in spec.participants[0].individual_rounds:
+            await resolve_focuses(
+                "ind", rp.index, rp.dimensions,
+                len(rp.dimensions) or rp.decision_count, "individual",
+            )
+    for t in spec.teams:
+        await resolve_focuses(
+            "team", t.round_index, t.dimensions,
+            len(t.dimensions) or t.decision_count, "group",
+        )
+
     sem = asyncio.Semaphore(settings.max_concurrency)
     total = len(spec.participants) + len(spec.teams)
     done = 0
