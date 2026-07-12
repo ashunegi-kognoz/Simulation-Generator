@@ -2,7 +2,7 @@
 `GenerationContext` that is the only thing ever sent to a model.
 
 Validators enforce the Section 19 input rules:
-- decision_count must equal len(dimensions)
+- when dimensions are provided (legacy), their length must equal decision_count
 - group rounds require team_config; individual rounds must not carry one
 - at most MAX_TEAMS teams (Section 5.1 hard limit)
 - participant_count in 1..50 and team size in 2..4 (field-level)
@@ -14,7 +14,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.schemas.common import Dimension
 
 # Hard ceiling mirrored from Section 5.1 / config (kept local so schema
 # validation never depends on runtime settings being importable).
@@ -81,12 +80,15 @@ class RoundSpec(BaseModel):
     index: int = Field(ge=1)
     round_type: Literal["individual", "group"]
     decision_count: int = Field(default=3, ge=1, le=6)
-    dimensions: list[Dimension]  # length must equal decision_count
+    # LEGACY/optional. When omitted (the normal path now), each decision's focus is
+    # DERIVED from the simulation's teaching frame at generation time. When provided
+    # (old payloads), the given tags are used as-is.
+    dimensions: list[str] | None = None
     team_config: TeamConfig | None = None  # required iff round_type == "group"
 
     @model_validator(mode="after")
     def _validate_round(self) -> "RoundSpec":
-        if len(self.dimensions) != self.decision_count:
+        if self.dimensions is not None and len(self.dimensions) != self.decision_count:
             raise ValueError("dimensions length must equal decision_count")
         if self.round_type == "group" and self.team_config is None:
             raise ValueError("group rounds require a team_config")

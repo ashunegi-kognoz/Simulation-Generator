@@ -1,7 +1,9 @@
 // TypeScript mirrors of the Part 1-3 server schemas. Rendered options are
 // letters-only by design — there is intentionally no `posture` field here.
 
-export type Dimension = "MOVE" | "HOLD" | "FRAME";
+// Focus tag on a decision. Legacy sims carry MOVE/HOLD/FRAME; new sims carry
+// derived focuses like "CAPITAL COMMITMENT".
+export type Dimension = string;
 export type Posture = "Protect" | "Enable" | "Hybrid" | "Defer";
 export type Letter = "A" | "B" | "C" | "D";
 export const LETTERS: Letter[] = ["A", "B", "C", "D"];
@@ -55,6 +57,8 @@ export interface RoleOverview {
   seniority_band: "mid" | "senior" | "exec" | "c_suite";
   gender?: "male" | "female" | "non_binary" | "unspecified";
   context?: string;
+  // KPI trade-offs owned by this role (participant playing it gets exactly these).
+  kpi_tradeoffs?: KpiTradeoff[];
 }
 
 export interface KpiTradeoff {
@@ -75,7 +79,7 @@ export interface RoundSpec {
   index: number;
   round_type: "individual" | "group";
   decision_count: number;
-  dimensions: Dimension[];
+  dimensions?: Dimension[]; // legacy only; omitted = focuses derived at generation
   team_config?: TeamConfig | null;
 }
 

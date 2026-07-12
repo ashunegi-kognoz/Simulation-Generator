@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, api } from "../../api/client";
 import type {
+  SimulationInput,
   FlaggedDecision,
   SimulationDetailMeta,
   SimulationStatus,
@@ -25,6 +26,49 @@ export function DetailsSettings({
   const [flagged, setFlagged] = useState<FlaggedDecision[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<SimulationInput | null>(null);
+  const [reviseInfo, setReviseInfo] = useState<string | null>(null);
+
+  const startEdit = () => {
+    if (!input) return;
+    setDraft(JSON.parse(JSON.stringify(input)) as SimulationInput);
+    setReviseInfo(null);
+    setEditing(true);
+  };
+
+  const patchDraft = (fn: (d: SimulationInput) => void) => {
+    setDraft((d) => {
+      if (!d) return d;
+      const next = JSON.parse(JSON.stringify(d)) as SimulationInput;
+      fn(next);
+      return next;
+    });
+  };
+
+  const submitRevise = async () => {
+    if (!draft) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api.revise(simulationId, token, draft);
+      const scopeMsg =
+        res.scope === "full"
+          ? "Spec-level inputs changed — regenerating the whole simulation."
+          : res.regenerating_participants.length || res.regenerating_teams.length
+            ? `Regenerating only: ${[...res.regenerating_participants, ...res.regenerating_teams].join(", ")} (everything else reused).`
+            : "No generated content affected by this edit.";
+      setReviseInfo(scopeMsg);
+      setEditing(false);
+      const s2 = await api.runJobs(simulationId, token);
+      setStatus(s2);
+      onStatusChange?.(s2.status);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Regeneration failed");
+    } finally {
+      setBusy(false);
+    }
+  };
   const timer = useRef<number | null>(null);
 
   const refresh = useCallback(
@@ -126,7 +170,9 @@ export function DetailsSettings({
                       {r.round_type}
                     </span>
                     <span className="text-muted">{r.decision_count} decisions</span>
-                    <span className="num text-xs text-faint">{r.dimensions.join(" · ")}</span>
+                    {r.dimensions && r.dimensions.length > 0 && (
+                      <span className="num text-xs text-faint">{r.dimensions.join(" · ")}</span>
+                    )}
                     {r.round_type === "group" && r.team_config && (
                       <span className="text-xs text-muted">
                         teams of {r.team_config.size} · {r.team_config.unique_group_names.join(", ")}
@@ -242,6 +288,80 @@ export function DetailsSettings({
           </Panel>
         )}
       </div>
+
+      <Panel eyebrow="Revisions" title="Edit inputs & regenerate">
+        {reviseInfo && <Banner tone="info">{reviseInfo}</Banner>}
+        {!editing ? (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted">
+              Change the inputs and regenerate as a new revision. Role-only edits regenerate just
+              the affected participants; changes to context, subject, rounds, or engine regenerate
+              the whole simulation. Prior revisions stay intact.
+            </p>
+            <button className="btn-primary shrink-0" onClick={startEdit} disabled={!input || busy}>
+              Edit inputs
+            </button>
+          </div>
+        ) : draft ? (
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm">
+                <span className="eyebrow mb-1 block">Simulation name</span>
+                <input className="input w-full" value={draft.simulation_name}
+                  onChange={(e) => patchDraft((d) => { d.simulation_name = e.target.value; })} />
+              </label>
+              <label className="block text-sm">
+                <span className="eyebrow mb-1 block">Company</span>
+                <input className="input w-full" value={draft.company_name}
+                  onChange={(e) => patchDraft((d) => { d.company_name = e.target.value; })} />
+              </label>
+            </div>
+            <label className="block text-sm">
+              <span className="eyebrow mb-1 block">Subject matter</span>
+              <input className="input w-full" value={draft.subject_matter}
+                onChange={(e) => patchDraft((d) => { d.subject_matter = e.target.value; })} />
+            </label>
+            <label className="block text-sm">
+              <span className="eyebrow mb-1 block">Business context</span>
+              <textarea className="input min-h-28 w-full" value={draft.business_context}
+                onChange={(e) => patchDraft((d) => { d.business_context = e.target.value; })} />
+            </label>
+            <div>
+              <div className="eyebrow mb-1.5">Roles & KPIs</div>
+              <div className="space-y-2">
+                {draft.role_overview.map((r, i) => (
+                  <div key={i} className="rounded-xl border border-line p-3">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input className="input text-sm" value={r.role_title} placeholder="Role title"
+                        onChange={(e) => patchDraft((d) => { d.role_overview[i].role_title = e.target.value; })} />
+                      <input className="input text-sm" value={r.scope} placeholder="Scope"
+                        onChange={(e) => patchDraft((d) => { d.role_overview[i].scope = e.target.value; })} />
+                    </div>
+                    {(r.kpi_tradeoffs ?? []).map((k, j) => (
+                      <div key={j} className="mt-2 grid gap-2 sm:grid-cols-3">
+                        <input className="input text-xs" value={k.metric} placeholder="KPI metric"
+                          onChange={(e) => patchDraft((d) => { d.role_overview[i].kpi_tradeoffs![j].metric = e.target.value; })} />
+                        <input className="input text-xs" value={k.target} placeholder="Target"
+                          onChange={(e) => patchDraft((d) => { d.role_overview[i].kpi_tradeoffs![j].target = e.target.value; })} />
+                        <input className="input text-xs" value={k.competing_pressure} placeholder="Competing pressure"
+                          onChange={(e) => patchDraft((d) => { d.role_overview[i].kpi_tradeoffs![j].competing_pressure = e.target.value; })} />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button className="btn-primary" onClick={submitRevise} disabled={busy}>
+                {busy ? "Regenerating…" : "Regenerate as new revision"}
+              </button>
+              <button className="btn-ghost" onClick={() => setEditing(false)} disabled={busy}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Panel>
     </div>
   );
 }

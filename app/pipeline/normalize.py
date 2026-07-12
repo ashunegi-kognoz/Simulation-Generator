@@ -15,7 +15,6 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from app.schemas.common import Dimension
 from app.schemas.input import GenerationContext, SimulationInput
 
 # --------------------------------------------------------------------------- #
@@ -26,7 +25,8 @@ from app.schemas.input import GenerationContext, SimulationInput
 @dataclass
 class RoundPlan:
     index: int
-    dimensions: list[Dimension]
+    dimensions: list[str]  # [] means: derive focuses at generation time
+    decision_count: int = 0  # authoritative count when dimensions is []
 
 
 @dataclass
@@ -53,8 +53,9 @@ class TeamSpec:
     team_id: str
     team_name: str
     round_index: int
-    dimensions: list[Dimension]
+    dimensions: list[str]  # [] means: derive focuses at generation time
     members: list[TeamMemberSpec]
+    decision_count: int = 0  # authoritative count when dimensions is []
     reconciliation: str = "consensus"
     reveal_mode: str = "anonymized"
 
@@ -158,7 +159,11 @@ class IntakeNormalizer:
             ParticipantSpec(
                 context=contexts[pid],
                 individual_rounds=[
-                    RoundPlan(index=r.index, dimensions=list(r.dimensions))
+                    RoundPlan(
+                        index=r.index,
+                        dimensions=list(r.dimensions or []),
+                        decision_count=r.decision_count,
+                    )
                     for r in individual_rounds
                 ],
             )
@@ -179,7 +184,8 @@ class IntakeNormalizer:
                         team_id=f"r{r.index}_team{ti + 1}",
                         team_name=team_name,
                         round_index=r.index,
-                        dimensions=list(r.dimensions),
+                        dimensions=list(r.dimensions or []),
+                        decision_count=r.decision_count,
                         members=[TeamMemberSpec(context=contexts[pid]) for pid in slice_ids],
                         reconciliation=tc.reconciliation,
                         reveal_mode=tc.reveal_mode,

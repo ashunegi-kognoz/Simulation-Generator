@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ValidationInfo, field_validator
 
-from app.schemas.common import POSTURE_SET, Dimension, Posture
+from app.schemas.common import POSTURE_SET, Posture
 
 
 # ---------- RENDER ----------
@@ -23,7 +23,7 @@ class RenderedOption(BaseModel):
 
 class RenderedDecision(BaseModel):
     decision_number: int
-    dimension: Dimension
+    dimension: str
     title: str
     question: str
     options: list[RenderedOption]  # shuffled; NO posture exposed

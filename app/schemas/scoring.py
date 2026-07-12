@@ -7,12 +7,12 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.schemas.common import Dimension, Posture
+from app.schemas.common import Posture
 
 
 class PostureFingerprint(BaseModel):
     overall: dict[str, float]
-    by_dimension: dict[Dimension, dict[str, float]]
+    by_dimension: dict[str, dict[str, float]]
     decisiveness: float
     consistency: float
     dimension_sensitivity: float

@@ -15,7 +15,7 @@ import asyncio
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -217,9 +217,20 @@ async def process_job(session: AsyncSession, job: Job, provider: LLMProvider) ->
         await checkpoint.flush(session)
 
         needs_review = audit.needs_review
+        # Revisions: each successful run produces the next version number; the
+        # first run is 1, an edit-and-regenerate run becomes 2, and so on. Old
+        # versions are immutable and stay readable (sessions pin to the version
+        # they played).
+        prev = (
+            await session.execute(
+                select(func.max(SimulationVersion.version)).where(
+                    SimulationVersion.simulation_id == sim.id
+                )
+            )
+        ).scalar()
         version = SimulationVersion(
             simulation_id=sim.id,
-            version=1,
+            version=int(prev or 0) + 1,
             sim_data_jsonb=sim_out.sim_data.model_dump(),
             metadata_jsonb=sim_out.generation_metadata.model_dump(),
             published_at=None if needs_review else _now(),

@@ -567,3 +567,122 @@ async def delete_simulation_image(
     if public_id:
         await cloudinary_service.delete_image(public_id)
     return {"deleted": True, "name": name}
+
+
+# --- Edit inputs & regenerate (revisions) -----------------------------------
+
+# Spec-level fields: a change to any of these invalidates ALL generated content
+# (the shared world/teaching frame depends on them), so the revision is a full
+# regeneration.
+_FULL_REGEN_FIELDS = (
+    "business_context",
+    "subject_matter",
+    "company_name",
+    "simulation_type",
+    "locale",
+    "seed",
+    "engine_version",
+    "rounds",
+)
+
+
+def _diff_scope(old_input: dict, new_input: dict) -> tuple[str, list[str], list[str]]:
+    """Classify a revision: ('full', [], []) or ('partial', participant_ids, team_ids).
+
+    Partial scope is computed at the NORMALIZED participant level: a participant is
+    invalidated iff the generation context it would receive (role identity + role
+    brief + KPIs + rounds) differs between old and new input. This is precise under
+    role edits, additions, and removals (round-robin shifts included). Teams are
+    invalidated iff they contain an invalidated member.
+    """
+    from app.pipeline import IntakeNormalizer
+    from app.schemas.input import SimulationInput
+
+    for field in _FULL_REGEN_FIELDS:
+        if old_input.get(field) != new_input.get(field):
+            return "full", [], []
+
+    normalizer = IntakeNormalizer()
+    old_spec = normalizer.normalize(SimulationInput.model_validate(old_input))
+    new_spec = normalizer.normalize(SimulationInput.model_validate(new_input))
+
+    old_ctx = {p.participant_id: p.context.model_dump_json() for p in old_spec.participants}
+    changed: list[str] = []
+    for p in new_spec.participants:
+        if old_ctx.get(p.participant_id) != p.context.model_dump_json():
+            changed.append(p.participant_id)
+
+    changed_set = set(changed)
+    team_ids = [
+        t.team_id
+        for t in new_spec.teams
+        if any(m.participant_id in changed_set for m in t.members)
+    ]
+    return "partial", changed, team_ids
+
+
+async def revise_simulation(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    simulation_id: uuid.UUID,
+    new_input: dict,
+) -> tuple[Simulation, Job, dict]:
+    """Apply edited inputs and queue a dependency-aware regeneration.
+
+    Only content whose inputs actually changed is regenerated: role-level edits
+    invalidate just those participants (and teams containing them); shared
+    world/context/frame and all untouched participants are reused via their
+    checkpoints. A change to any spec-level field regenerates everything. Either
+    way the run produces the NEXT SimulationVersion; prior versions stay intact.
+    """
+    from sqlalchemy import delete as sa_delete
+
+    from app.models import GenerationRun
+    from app.schemas.input import SimulationInput
+
+    sim = await get_simulation(session, tenant_id, simulation_id)
+    if sim.status in ("queued", "generating"):
+        raise StateError("a generation job is already queued or running for this simulation")
+
+    old_input = dict(sim.input_jsonb or {})
+    # Keep identity fields authoritative from the stored simulation.
+    new_input = dict(new_input)
+    new_input["tenant_id"] = old_input.get("tenant_id", str(tenant_id))
+    SimulationInput.model_validate(new_input)  # reject malformed edits up front
+
+    scope, participant_ids, team_ids = _diff_scope(old_input, new_input)
+
+    if scope == "full":
+        await session.execute(
+            sa_delete(GenerationRun).where(
+                GenerationRun.simulation_id == sim.id,
+                GenerationRun.stage.like("ckpt:%"),
+            )
+        )
+    else:
+        stale = [f"ckpt:participant:{pid}" for pid in participant_ids] + [
+            f"ckpt:team:{tid}" for tid in team_ids
+        ]
+        if stale:
+            await session.execute(
+                sa_delete(GenerationRun).where(
+                    GenerationRun.simulation_id == sim.id,
+                    GenerationRun.stage.in_(stale),
+                )
+            )
+
+    sim.input_jsonb = new_input
+    sim.name = new_input.get("simulation_name", sim.name)
+    sim.engine_version = int(new_input.get("engine_version", sim.engine_version) or 1)
+    sim.status = "queued"
+
+    job = Job(simulation_id=sim.id, kind="generate", status="queued")
+    session.add(job)
+    await session.flush()
+
+    info = {
+        "scope": scope,
+        "regenerating_participants": participant_ids,
+        "regenerating_teams": team_ids,
+    }
+    return sim, job, info

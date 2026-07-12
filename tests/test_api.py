@@ -259,6 +259,8 @@ async def test_full_offline_flow_v2_default() -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         body = _sim_input(str(tenant))
         body.pop("engine_version")  # exercise the DEFAULT (must be v2)
+        for rnd in body["rounds"]:
+            rnd.pop("dimensions", None)  # focuses must be DERIVED, not authored
         r = await client.post("/simulations", json=body, headers=headers)
         assert r.status_code == 202, r.text
         sim_id = r.json()["simulation_id"]
@@ -278,6 +280,12 @@ async def test_full_offline_flow_v2_default() -> None:
         keys = {st["key"] for st in common["type_set"]["stances"]}
         assert len(keys) == 4
         boards = sim_data["rounds"]["round_1"]["participants"]
+        focus_tags = {
+            d["dimension"]
+            for pc in boards.values()
+            for d in pc["decision_board"]
+        }
+        assert focus_tags and not focus_tags <= {"MOVE", "HOLD", "FRAME"}  # derived focuses
         for pc in boards.values():
             for d in pc["decision_board"]:
                 assert {o["posture"] for o in d["options"]} == keys

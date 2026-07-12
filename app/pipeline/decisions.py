@@ -16,7 +16,6 @@ from app.llm.call import parse_call
 from app.llm.provider import LLMProvider
 from app.pipeline.critic import _critic_call, naive_picker, naive_spread
 from app.prompts import FORGE_PROMPT
-from app.schemas.common import Dimension
 from app.schemas.content import BalanceReport, Decision, DecisionSet, DynamicStance
 
 
@@ -32,7 +31,7 @@ def _v2_directive(posture_keys: list[str], stances: list[DynamicStance]) -> str:
 
 
 def _forge_input(
-    context_blob: str, dimensions: list[Dimension], posture_keys: list[str] | None = None
+    context_blob: str, dimensions: list[str], posture_keys: list[str] | None = None
 ) -> str:
     # Human-readable dimension list plus a machine-readable hint (the mock reads the
     # hint; the real model reads the natural-language line). Variable content last.
@@ -49,7 +48,7 @@ def _forge_input(
 
 async def _forge_call(
     context_blob: str,
-    dimensions: list[Dimension],
+    dimensions: list[str],
     llm: LLMProvider,
     posture_keys: list[str] | None = None,
     stances: list[DynamicStance] | None = None,
@@ -81,7 +80,7 @@ async def _forge_call(
 
 async def decision_forge(
     context_blob: str,
-    dimensions: list[Dimension],
+    dimensions: list[str],
     llm: LLMProvider,
     posture_keys: list[str] | None = None,
     stances: list[DynamicStance] | None = None,
@@ -155,7 +154,7 @@ def _passes(report: BalanceReport, spread: int, threshold: int) -> bool:
 
 async def build_decisions(
     context_blob: str,
-    dimensions: list[Dimension],
+    dimensions: list[str],
     llm: LLMProvider,
     posture_keys: list[str] | None = None,
     stances: list[DynamicStance] | None = None,

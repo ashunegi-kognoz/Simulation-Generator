@@ -29,6 +29,7 @@ from app.pipeline.assemble import (
     shuffle_positions,
 )
 from app.pipeline.common import common_content
+from app.pipeline.decision_focus import DecisionFocusSet, canonical_cycle, generate_decision_focuses
 from app.pipeline.reflection_spec import generate_reflection_spec
 from app.schemas.content import CommonData
 from app.pipeline.type_set import generate_type_set
@@ -177,9 +178,16 @@ async def generate_with_audit(
         role_sit = await role_smith(p.context, bible, llm)
         ctx_json = p.context.model_dump_json()
         rounds: dict[int, RoundParticipantContent] = {}
+        blob = _context_blob(bible, role_sit.role_data, role_sit.situation_data, ctx_json, shared_ctx)
         for rp in p.individual_rounds:
-            blob = _context_blob(bible, role_sit.role_data, role_sit.situation_data, ctx_json, shared_ctx)
-            build = await build_decisions(blob, rp.dimensions, llm, posture_keys, stances)
+            dims = await resolve_focuses(
+                "ind", rp.index, rp.dimensions, len(rp.dimensions) or rp.decision_count, "individual"
+            )
+            round_blob = blob
+            note = focus_notes.get(f"ind:{rp.index}")
+            if note:
+                round_blob = f"{blob}\n\n=== DECISION FOCUS GUIDE ===\n{note}"
+            build = await build_decisions(round_blob, dims, llm, posture_keys, stances)
             rounds[rp.index] = RoundParticipantContent(
                 situation_data=role_sit.situation_data,
                 decision_board=build.decisions,
@@ -202,7 +210,13 @@ async def generate_with_audit(
         # in a group round (postures still hidden until debrief).
         team_ctx_json = t.members[0].context.model_dump_json() if t.members else ""
         team_blob = _context_blob(bible, "team cluster", scenario, team_ctx_json, shared_ctx)
-        team_build = await build_decisions(team_blob, t.dimensions, llm, posture_keys, stances)
+        team_dims = await resolve_focuses(
+            "team", t.round_index, t.dimensions, len(t.dimensions) or t.decision_count, "group"
+        )
+        note = focus_notes.get(f"team:{t.round_index}")
+        if note:
+            team_blob = f"{team_blob}\n\n=== DECISION FOCUS GUIDE ===\n{note}"
+        team_build = await build_decisions(team_blob, team_dims, llm, posture_keys, stances)
         # ONE shared situation for the whole team (identical for every member) --
         # a single call instead of one per member.
         situation = await team_situation(t, scenario, bible, llm)
@@ -230,6 +244,32 @@ async def generate_with_audit(
     # Frozen shared context: built ONCE from Tier-1 output, injected into every
     # per-participant/team call so all builds stay consistent with the same facts.
     shared_ctx = _shared_context(common)
+
+    # Decision focuses per round: authored dimensions (legacy) are used verbatim;
+    # otherwise v2 DERIVES the focuses from the teaching frame (once per round,
+    # checkpointed, shared by every participant for comparability), and v1 falls
+    # back to the canonical MOVE/HOLD/FRAME cycle without an LLM call.
+    focus_notes: dict[str, str] = {}
+
+    async def resolve_focuses(kind: str, index: int, authored: list[str], count: int, round_type: str) -> list[str]:
+        if authored:
+            return list(authored)
+        if engine_version < 2:
+            return canonical_cycle(count)
+        node = f"focus:{kind}:r{index}:{count}:{round_type}"
+        if cp.has(node):
+            stored = cp.load(node)
+        else:
+            derived = await generate_decision_focuses(
+                spec.subject_matter, count, round_type, llm,
+                common.reflection_spec, common.type_set,
+            )
+            stored = DecisionFocusSet(focuses=derived)
+            cp.save(node, stored)
+        focus_notes[f"{kind}:{index}"] = "\n".join(
+            f"- {f.tag}: {f.description}" for f in stored.focuses
+        )
+        return [f.tag for f in stored.focuses]
 
     # Batched fan-out: participants are generated in small ordered waves instead of
     # all at once. With 40-50 distinct roles this bounds model load and memory,

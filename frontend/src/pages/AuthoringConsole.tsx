@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ApiError, api } from "../api/client";
 import type {
-  Dimension,
   FlaggedDecision,
   KpiTradeoff,
   RoleOverview,
@@ -11,7 +10,6 @@ import type {
 } from "../api/types";
 import { Banner, Panel, Spinner, StatusBadge } from "../components/ui";
 
-const DIMENSIONS: Dimension[] = ["MOVE", "HOLD", "FRAME"];
 const BANDS: RoleOverview["seniority_band"][] = ["mid", "senior", "exec", "c_suite"];
 const GENDERS: NonNullable<RoleOverview["gender"]>[] = ["male", "female", "non_binary", "unspecified"];
 const GENDER_LABELS: Record<string, string> = {
@@ -33,7 +31,7 @@ function defaultInput(): Omit<SimulationInput, "tenant_id"> {
     participant_count: 3,
     locale: "en-IN",
     rounds: [
-      { index: 1, round_type: "individual", decision_count: 2, dimensions: ["MOVE", "HOLD"] },
+      { index: 1, round_type: "individual", decision_count: 2 },
     ],
     role_overview: [
       {
@@ -50,12 +48,6 @@ function defaultInput(): Omit<SimulationInput, "tenant_id"> {
       { metric: "OTIF", target: "95%", competing_pressure: "freight cost" },
     ],
   };
-}
-
-function resizeDimensions(dims: Dimension[], count: number): Dimension[] {
-  const out = dims.slice(0, count);
-  while (out.length < count) out.push("MOVE");
-  return out;
 }
 
 export function AuthoringConsole({
@@ -198,7 +190,7 @@ export function AuthoringConsole({
                     index: form.rounds.length + 1,
                     round_type: "individual",
                     decision_count: 2,
-                    dimensions: ["MOVE", "HOLD"],
+
                   },
                 ],
               })
@@ -226,12 +218,7 @@ export function AuthoringConsole({
                     value={r.decision_count}
                     min={1}
                     max={6}
-                    onChange={(v) =>
-                      patchRound(i, {
-                        decision_count: v,
-                        dimensions: resizeDimensions(r.dimensions, v),
-                      })
-                    }
+                    onChange={(v) => patchRound(i, { decision_count: v })}
                   />
                   {form.rounds.length > 1 && (
                     <button
@@ -242,24 +229,10 @@ export function AuthoringConsole({
                     </button>
                   )}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {r.dimensions.map((d, di) => (
-                    <select
-                      key={di}
-                      className="input w-auto"
-                      value={d}
-                      onChange={(e) => {
-                        const next = r.dimensions.slice();
-                        next[di] = e.target.value as Dimension;
-                        patchRound(i, { dimensions: next });
-                      }}
-                    >
-                      {DIMENSIONS.map((dim) => (
-                        <option key={dim} value={dim}>{dim}</option>
-                      ))}
-                    </select>
-                  ))}
-                </div>
+                <p className="mt-2 text-xs text-muted">
+                  Each decision's focus is derived from the simulation's teaching frame at
+                  generation time.
+                </p>
                 {r.round_type === "group" && r.team_config && (
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <Number

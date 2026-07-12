@@ -391,6 +391,20 @@ class MockLLMProvider:
             parsed = ConsistencyReport(contradictions=[])
         elif schema is Debrief:
             parsed = _debrief(input, rng)
+        elif schema.__name__ == "DecisionFocusSet":
+            from app.pipeline.decision_focus import DecisionFocus, DecisionFocusSet
+            n = int(_hint(input, "FOCUS_COUNT") or "3")
+            base = [
+                ("CAPITAL COMMITMENT", "Where the constrained envelope is committed."),
+                ("WHAT TO DEFEND", "Which position is held when pressure hits the unfunded side."),
+                ("BOARD FRAMING", "How the commitment is framed to the governing owners."),
+                ("SEQUENCING", "What is done first and what is gated behind evidence."),
+                ("TALENT ALLOCATION", "Where scarce leadership attention is deployed."),
+                ("RISK POSTURE", "How much downside exposure is consciously accepted."),
+            ]
+            parsed = DecisionFocusSet(
+                focuses=[DecisionFocus(tag=t, description=d) for t, d in base[:n]]
+            )
         elif schema is ReflectionSpec:
             parsed = ReflectionSpec(
                 framework_name="Capacity Planning",

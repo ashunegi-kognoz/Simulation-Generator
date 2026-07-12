@@ -44,6 +44,28 @@ async def list_simulations(
     return {"simulations": await generation_service.list_simulations(db, tenant)}
 
 
+@router.post("/{simulation_id}/revise", status_code=202)
+async def revise_simulation(
+    simulation_id: uuid.UUID,
+    payload: SimulationInput,
+    db: AsyncSession = Depends(deps.db_session),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    """Apply edited inputs and queue a dependency-aware regeneration producing the
+    next revision. Role-only edits regenerate just the affected participants;
+    spec-level changes (context/subject/rounds/engine) regenerate everything."""
+    sim, job, info = await generation_service.revise_simulation(
+        db, tenant, simulation_id, payload.model_dump()
+    )
+    await db.commit()
+    return {
+        "simulation_id": str(sim.id),
+        "job_id": str(job.id),
+        "status": sim.status,
+        **info,
+    }
+
+
 @router.post("/reflection-spec-preview")
 async def reflection_spec_preview(
     body: dict = Body(...),

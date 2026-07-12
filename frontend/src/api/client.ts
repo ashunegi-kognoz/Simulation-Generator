@@ -167,6 +167,20 @@ export const api = {
   getStatus: (simulationId: string, token: string) =>
     request<StatusResponse>(`/simulations/${simulationId}/status`, { token }),
 
+  revise: (simulationId: string, token: string, payload: SimulationInput) =>
+    request<{
+      simulation_id: string;
+      job_id: string;
+      status: string;
+      scope: "full" | "partial";
+      regenerating_participants: string[];
+      regenerating_teams: string[];
+    }>(`/simulations/${simulationId}/revise`, {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+
   runJobs: (simulationId: string, token: string) =>
     request<StatusResponse & { jobs_handled: number }>(`/simulations/${simulationId}/run`, {
       method: "POST",

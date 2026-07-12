@@ -16,6 +16,7 @@ from app.pipeline.assemble import (
     RoundParticipantContent,
     TeamBuildResult,
 )
+from app.pipeline.decision_focus import DecisionFocusSet
 from app.schemas.content import BalanceReport, CommonData, Decision, NarrativeBible, ReflectionSpec, TypeSet
 
 _PYDANTIC = {
@@ -23,6 +24,7 @@ _PYDANTIC = {
     "CommonData": CommonData,
     "TypeSet": TypeSet,
     "ReflectionSpec": ReflectionSpec,
+    "DecisionFocusSet": DecisionFocusSet,
 }
 
 
@@ -37,7 +39,13 @@ def _enc_round(rc: RoundParticipantContent | MemberBuildContent) -> dict[str, An
 
 
 def _dec_board(raw: list[dict]) -> list[Decision]:
-    return [Decision(**d) for d in raw]
+    # Stored boards are trusted: validate each decision against its OWN posture
+    # keys so v2 (dynamic-key) boards rehydrate as cleanly as canonical v1 ones.
+    out: list[Decision] = []
+    for d in raw:
+        postures = [o.get("posture") for o in d.get("options", [])]
+        out.append(Decision.model_validate(d, context={"allowed_postures": postures}))
+    return out
 
 
 def _dec_reports(raw: list[dict]) -> list[BalanceReport]:
@@ -45,7 +53,7 @@ def _dec_reports(raw: list[dict]) -> list[BalanceReport]:
 
 
 def encode(value: Any) -> dict[str, Any]:
-    if isinstance(value, NarrativeBible | CommonData | TypeSet | ReflectionSpec):
+    if isinstance(value, NarrativeBible | CommonData | TypeSet | ReflectionSpec | DecisionFocusSet):
         return {"t": value.__class__.__name__, "data": value.model_dump()}
     if isinstance(value, ParticipantBuildResult):
         return {
@@ -61,6 +69,7 @@ def encode(value: Any) -> dict[str, Any]:
             "team_name": value.team_name,
             "round_index": value.round_index,
             "scenario_data": value.scenario_data,
+            "situation_data": value.situation_data,
             "participant_ids": list(value.participant_ids),
             "members": {pid: _enc_round(mc) for pid, mc in value.members.items()},
         }
@@ -92,6 +101,7 @@ def decode(blob: dict[str, Any]) -> Any:
             team_name=blob["team_name"],
             round_index=blob["round_index"],
             scenario_data=blob["scenario_data"],
+            situation_data=blob.get("situation_data", ""),
             participant_ids=blob["participant_ids"],
             members={
                 pid: MemberBuildContent(

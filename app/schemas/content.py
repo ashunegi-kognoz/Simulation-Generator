@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
-from app.schemas.common import SORTED_POSTURES, Dimension, Posture
+from app.schemas.common import SORTED_POSTURES, Posture
 
 
 # ---------- WORLD ----------
@@ -194,7 +194,7 @@ class Option(BaseModel):
 
 class Decision(BaseModel):
     decision_number: int
-    dimension: Dimension
+    dimension: str  # focus tag; legacy sims carry MOVE/HOLD/FRAME
     title: str
     question: str
     options: list[Option] = Field(min_length=4, max_length=4)
