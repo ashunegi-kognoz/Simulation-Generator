@@ -5,7 +5,7 @@ Validators enforce the Section 19 input rules:
 - decision_count must equal len(dimensions)
 - group rounds require team_config; individual rounds must not carry one
 - at most MAX_TEAMS teams (Section 5.1 hard limit)
-- participant_count in 1..20 and team size in 2..4 (field-level)
+- participant_count in 1..50 and team size in 2..4 (field-level)
 """
 
 from __future__ import annotations
@@ -36,6 +36,9 @@ class RoleOverview(BaseModel):
     scope: str
     seniority_band: Literal["mid", "senior", "exec", "c_suite"] = "senior"
     gender: Literal["male", "female", "non_binary", "unspecified"] = "unspecified"
+    # KPI trade-offs owned by THIS role. When present, the participant playing this
+    # role gets exactly these dilemmas (instead of the shared flat list below).
+    kpi_tradeoffs: list[KpiTradeoff] = Field(default_factory=list)
     # Optional free-text brief for this role, typically pasted or uploaded from a
     # .md/.txt file. Capped at ~1 MB of text; fed to role generation as context.
     context: str = Field(default="", max_length=1_000_000)
@@ -100,12 +103,14 @@ class SimulationInput(BaseModel):
     company_name: str
     business_context: str
     subject_matter: str
-    participant_count: int = Field(ge=1, le=20)
+    participant_count: int = Field(ge=1, le=50)
     # 1 = allocation + fixed postures (default); 2 = allocation + dynamic type-set
-    engine_version: int = Field(default=1, ge=1, le=2)
+    engine_version: int = Field(default=2, ge=1, le=2)
     rounds: list[RoundSpec]
     role_overview: list[RoleOverview]
-    kpi_critical_tradeoff: list[KpiTradeoff]
+    # Legacy/shared pool: used only for roles that do not carry their own
+    # kpi_tradeoffs. Optional when every role has its own.
+    kpi_critical_tradeoff: list[KpiTradeoff] = Field(default_factory=list)
     locale: str = "en-IN"
     seed: int | None = None
     tenant_id: str
@@ -120,8 +125,15 @@ class SimulationInput(BaseModel):
         # to participant_count, keeping simple single-role authoring valid.
         if not self.role_overview:
             raise ValueError("role_overview must not be empty")
+        # Every role needs a dilemma set: either its own kpi_tradeoffs or the shared
+        # kpi_critical_tradeoff pool as a fallback.
         if not self.kpi_critical_tradeoff:
-            raise ValueError("kpi_critical_tradeoff must not be empty")
+            missing = [r.role_title for r in self.role_overview if not r.kpi_tradeoffs]
+            if missing:
+                raise ValueError(
+                    "kpi_critical_tradeoff is empty and these roles have no "
+                    f"kpi_tradeoffs of their own: {', '.join(missing)}"
+                )
         return self
 
 

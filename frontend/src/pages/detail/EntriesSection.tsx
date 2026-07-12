@@ -276,6 +276,16 @@ function RoundBlock({
                   editing={editing}
                   onChange={(v) => set([...tPath, "scenario_data"], v)}
                 />
+                {t.situation_data ? (
+                  <div className="mt-3">
+                    <Field
+                      label="Team situation (shared by all members)"
+                      value={t.situation_data}
+                      editing={editing}
+                      onChange={(v) => set([...tPath, "situation_data"], v)}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-4 space-y-4">
                   {Object.entries(t.members).map(([pid, m]) => {
                     const mPath: Path = [...tPath, "members", pid];
@@ -287,12 +297,14 @@ function RoundBlock({
                           </span>
                           <span className="text-xs text-muted">member view</span>
                         </div>
-                        <Field
-                          label="Your situation"
-                          value={m.situation_data}
-                          editing={editing}
-                          onChange={(v) => set([...mPath, "situation_data"], v)}
-                        />
+                        {!t.situation_data && (
+                          <Field
+                            label="Your situation"
+                            value={m.situation_data}
+                            editing={editing}
+                            onChange={(v) => set([...mPath, "situation_data"], v)}
+                          />
+                        )}
                         <div className="mt-3">
                           <div className="eyebrow mb-1.5">Decision board</div>
                           <DecisionBoard
@@ -458,21 +470,77 @@ export function EntriesSection({
           <div>
             <div className="eyebrow mb-1">Business priorities</div>
             {editing ? (
-              <div className="space-y-1.5">
-                {c.business_priorities.map((p, i) => (
-                  <input
-                    key={i}
-                    className="input w-full text-sm"
-                    value={p}
-                    onChange={(e) => set(["common_data", "business_priorities", i], e.target.value)}
-                  />
-                ))}
+              <div className="space-y-3">
+                {c.business_priorities.map((p, i) =>
+                  typeof p === "string" ? (
+                    <input
+                      key={i}
+                      className="input w-full text-sm"
+                      value={p}
+                      onChange={(e) => set(["common_data", "business_priorities", i], e.target.value)}
+                    />
+                  ) : (
+                    <div key={i} className="rounded-xl border border-line p-3">
+                      <input
+                        className="input w-full text-sm font-medium"
+                        value={p.title}
+                        onChange={(e) =>
+                          set(["common_data", "business_priorities", i, "title"], e.target.value)
+                        }
+                      />
+                      <div className="mt-2 space-y-1">
+                        {(p.table ?? []).map((row, j) => (
+                          <div key={j} className="flex gap-2">
+                            <input
+                              className="input w-1/2 text-xs"
+                              value={row.item}
+                              onChange={(e) =>
+                                set(
+                                  ["common_data", "business_priorities", i, "table", j, "item"],
+                                  e.target.value,
+                                )
+                              }
+                            />
+                            <input
+                              className="input w-1/2 text-xs"
+                              value={row.value}
+                              onChange={(e) =>
+                                set(
+                                  ["common_data", "business_priorities", i, "table", j, "value"],
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ),
+                )}
               </div>
             ) : (
-              <ol className="list-decimal space-y-1 pl-5 text-sm text-ink">
-                {c.business_priorities.map((p, i) => (
-                  <li key={i}>{p}</li>
-                ))}
+              <ol className="list-decimal space-y-3 pl-5 text-sm text-ink">
+                {c.business_priorities.map((p, i) =>
+                  typeof p === "string" ? (
+                    <li key={i}>{p}</li>
+                  ) : (
+                    <li key={i}>
+                      <div className="font-medium">{p.title}</div>
+                      {(p.table ?? []).length > 0 && (
+                        <table className="mt-1 w-full max-w-md text-xs">
+                          <tbody>
+                            {(p.table ?? []).map((row, j) => (
+                              <tr key={j} className="border-b border-line last:border-0">
+                                <td className="py-1 pr-3 text-muted">{row.item}</td>
+                                <td className="py-1 font-medium">{row.value}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </li>
+                  ),
+                )}
               </ol>
             )}
           </div>
@@ -491,7 +559,76 @@ export function EntriesSection({
         </div>
       </Panel>
 
-      {ps && (
+      {c.reflection_spec && (
+        <Panel eyebrow="Teaching frame (hidden from participants)" title="Reflection spec">
+          <div className="mb-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <div className="eyebrow mb-1">Framework</div>
+              <div className="text-sm font-medium">{c.reflection_spec.framework_name}</div>
+              <div className="mt-0.5 text-sm text-muted">
+                {c.reflection_spec.framework_definition}
+              </div>
+            </div>
+            <div>
+              <div className="eyebrow mb-1">Learning tension</div>
+              <div className="text-sm">{c.reflection_spec.learning_tension}</div>
+            </div>
+          </div>
+          <div className="eyebrow mb-1.5">Outcome parameters</div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {c.reflection_spec.outcome_parameters.map((op) => (
+              <div key={op.key} className="rounded-xl border border-line p-3">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="rounded-full bg-petrol-soft px-2 py-0.5 text-[11px] font-semibold text-petrol">
+                    {op.name}
+                  </span>
+                  <span className="num text-[11px] text-faint">{op.key}</span>
+                </div>
+                <div className="text-sm text-muted">{op.definition}</div>
+                <div className="mt-1 text-xs text-faint">
+                  Strong performer: {op.what_good_looks_like}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {c.type_set && (
+        <Panel
+          eyebrow="Decision stances (hidden from participants)"
+          title="Type-set (dynamic)"
+        >
+          <div className="mb-3">
+            <div className="eyebrow mb-1">Inferred category</div>
+            <div className="text-sm">{c.type_set.inferred_category}</div>
+          </div>
+          <div className="mb-3">
+            <div className="eyebrow mb-1">Learning tension</div>
+            <div className="text-sm">{c.type_set.learning_tension}</div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {c.type_set.stances.map((st, i) => (
+              <div key={st.key} className="rounded-xl border border-line p-3">
+                <div className="mb-1 flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                      STANCE_STYLES[i % STANCE_STYLES.length],
+                    )}
+                  >
+                    {st.label}
+                  </span>
+                  <span className="num text-[11px] text-faint">{st.key}</span>
+                </div>
+                <div className="text-sm text-muted">{st.definition}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {ps && !c.type_set && (
         <Panel eyebrow="Decision stances (hidden from participants)" title="Stance scheme">
           <div className="mb-3">
             <div className="eyebrow mb-1">Inferred category</div>

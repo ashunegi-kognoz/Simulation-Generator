@@ -160,6 +160,7 @@ async def get_status(
         "status": sim.status,
         "job_status": job.status if job else None,
         "job_error": job.error if job else None,
+        "progress": (job.progress_jsonb or {}) if job else {},
         "needs_review": sim.status == "needs_review",
         "flagged_count": int(flagged),
         "version": version.version if version else None,
@@ -422,6 +423,13 @@ async def update_content(
 
     # Validate: rejects structural corruption (e.g. a decision missing a posture).
     validated = SimData.model_validate(sim_data_in)
+    # A team's shared situation is the single source of truth: when present, sync
+    # it into every member copy so an admin edit can never leave members stale.
+    for rnd in validated.rounds.values():
+        for tc in (rnd.teams or {}).values():
+            if tc.situation_data:
+                for member in tc.members.values():
+                    member.situation_data = tc.situation_data
     data = validated.model_dump(mode="json")
     version.sim_data_jsonb = data
 

@@ -10,9 +10,9 @@ from __future__ import annotations
 # --- versions ---
 FORGE_PROMPT_V = "forge.v5"
 WORLD_PROMPT_V = "world.v4"
-COMMON_PROMPT_V = "common.v6"
-ROLE_PROMPT_V = "role.v5"
-TEAM_PROMPT_V = "team.v4"
+COMMON_PROMPT_V = "common.v7"
+ROLE_PROMPT_V = "role.v7"
+TEAM_PROMPT_V = "team.v5"
 BALANCE_PROMPT_V = "balance.v3"
 NAIVE_PROMPT_V = "naive.v2"
 CONSISTENCY_PROMPT_V = "consistency.v3"
@@ -307,12 +307,22 @@ Using the bible and subject_matter, produce common simulation content in strict 
 Return JSON only matching CommonData.
 
 REQUIREMENTS BY FIELD
-- allocation_room_data: describe available resources, enterprise constraints, timing pressure,
-  operational facts, financial facts, and decision ownership. Do not describe strategic trade-offs.
+- allocation_room_data: a warm, high-level WELCOME to the simulation, 1-2 short paragraphs.
+  Set the stage and the spirit of the exercise (what kind of leadership challenge awaits) WITHOUT
+  simulation specifics: no figures, no dates, no names, no constraints, no strategic detail. Those
+  belong in business_landscape and crisis_data. Tone: inviting and composed, never cheerleading.
 - business_landscape: enterprise reality using observable facts, operating constraints, deadlines,
-  stakeholder expectations, financial context, and operational pressures. Avoid strategic interpretation.
-- business_priorities: exactly five shared priorities, distinct and decision-relevant.
-- crisis_data: immediate trigger event with timeline pressure and stakeholder reactions.
+  stakeholder expectations, financial context, and operational pressures. Avoid strategic
+  interpretation. STRUCTURE: at most 6 short paragraphs of 30-40 words each, separated by blank
+  lines; each paragraph covers one theme. Total must stay compact.
+- business_priorities: exactly five shared priorities, distinct and decision-relevant. Each is an
+  object with: title (one crisp priority statement, <= 15 words) and table (4-5 rows of
+  {item, value} pairs grounding the priority in data: metrics, targets, deadlines, owners, or
+  exposures drawn from the business context; values must be concrete, consistent with every other
+  section, and never invented beyond plausibility).
+- crisis_data: immediate trigger event with timeline pressure and stakeholder reactions. Write it
+  as a compact date-ordered account: 4-8 short entries, each opening with its date or time marker
+  (chronological), one line or sentence each. No prose padding.
 - posture_scheme: infer THIS simulation's decision category from subject_matter and the business
   context (for example "Stakeholder Influence", "Strategy", "Turnaround", "Market Entry",
   "Restructuring") and set inferred_category to it. Then name the four fixed decision stances in
@@ -362,6 +372,14 @@ GLOBAL RULES
 # --- 10.4 RoleSmith ---
 ROLE_PROMPT = """\
 Using bible + role_overview + kpi_critical_tradeoff, return JSON only with role_data and situation_data.
+
+KPI OWNERSHIP
+- The kpi_tradeoffs in GENERATION_CONTEXT are THIS role's owned dilemmas: each pairs a metric
+  this role answers for with the competing pressure that makes it hard.
+- situation_data must be built around these dilemmas: the metric, its target, and the competing
+  pressure must be concretely present in the situation (as facts and stakes, never as advice).
+- Do not assign these metrics to other characters; other roles may feel their own pressures, but
+  accountability for these KPIs sits here.
 - If GENERATION_CONTEXT contains a non-empty role_context, treat it as an authoritative brief for THIS
   role: fold its specifics (responsibilities, mandate, reporting reality, tensions, named stakeholders)
   into role_data and situation_data, staying consistent with the bible. Do not contradict it; do not
@@ -378,7 +396,8 @@ IDENTITY AUTHORITY
   supporting stakeholders must hold clearly distinct mandates and consistent reporting lines.
 
 ROLE STANDARD
-- role_data must reflect role title, entity, scope, reporting line, and authority boundary.
+- role_data must reflect role title, entity, scope, reporting line, and authority boundary, in a
+  SINGLE compact sentence or two of at most 20-25 words total.
 
 SITUATION STANDARD
 - Write situation_data as plain prose. Do NOT include the literal heading "YOUR SITUATION" or any
@@ -396,7 +415,7 @@ QUALITY RULES
 - No teaching tone; this is live decision context, not explanation.
 - No generic narrative. Make tension operational and specific.
 - Keep concise, direct, and decision-focused.
-- Keep situation_data between 150 and 250 words before the data block; include only what this role
+- Keep situation_data to 1-2 short paragraphs before the data block; include only what this role
   needs for the coming decisions.
 - Output must be free of typos, stray tab/control characters, truncated sentences, and duplicated
   headings.
@@ -408,24 +427,25 @@ Generate team-round content from the bible.
 
 OUTPUT
 - scenario_data: one shared enterprise operating situation the team must resolve together.
-- members[*].situation_data: role-specific view of the same shared operating situation.
+- situation_data (when requested): ONE shared team situation, identical for every member.
 
 HARD RULES
 - One shared decision board for the team. Do not imply different option sets by member.
 - Keep shared facts, numbers, dates, and stakeholders fully consistent.
 - scenario_data must include: operational context, current operating state, urgency source,
-  dependent stakeholder, known constraints, observable consequences.
-- Members are the SAME participants as in the individual rounds: use each member's role_overview
-  identity (title, function, scope) exactly as given; never introduce a new or different title for
-  an existing participant.
-- Each member's situation_data is plain prose (do NOT include a literal "YOUR SITUATION" heading;
-  the interface labels it) and must be written strictly from that role's vantage point -- its
-  accountability, stakes, information, and pressures inside the shared scenario -- so that two
-  members' situations are clearly non-interchangeable.
+  dependent stakeholder, known constraints, observable consequences. It must NOT contain any
+  role-specific "your situation" passage, and never the literal heading "YOUR SITUATION" or any
+  other heading -- the interface adds labels.
+- situation_data is ONE situation for the WHOLE TEAM, 1-2 short paragraphs of plain prose,
+  addressed to the team collectively (what the team as a group faces, owes, and must decide),
+  never to a single role. Do NOT include the literal heading "YOUR SITUATION" or any heading.
+- Members are the SAME participants as in the individual rounds: use role_overview identities
+  (title, function, scope) exactly as given; never introduce a new or different title for an
+  existing participant.
 - Do not explicitly describe strategic trade-offs.
 - Keep writing concise, quantified, and realistic.
 
-Return JSON only matching the expected team/member schema.
+Return JSON only matching the expected schema.
 """
 
 # --- 10.6 BalanceCritic ---

@@ -44,7 +44,15 @@ async def _participant_decision_objects(
             .order_by(DecisionRecord.round_index, DecisionRecord.decision_number)
         )
     ).scalars().all()
-    return [Decision(**r.decision_jsonb) for r in rows]
+    # Stored rows are trusted: validate each against its OWN posture keys so v2
+    # (dynamic-key) decisions reconstruct as cleanly as canonical v1 ones.
+    out: list[Decision] = []
+    for r in rows:
+        postures = [o.get("posture") for o in (r.decision_jsonb or {}).get("options", [])]
+        out.append(
+            Decision.model_validate(r.decision_jsonb, context={"allowed_postures": postures})
+        )
+    return out
 
 
 

@@ -77,6 +77,10 @@ class Settings(BaseSettings):
         return self
 
     max_concurrency: int = 12
+    # How many participants are generated concurrently per wave in the fan-out.
+    # Small on purpose: with 40-50 distinct roles this bounds model load and keeps
+    # progress readable, while max_concurrency still caps total in-flight LLM calls.
+    participant_batch_size: int = 3
     max_revisions: int = 2
     balance_threshold: int = 25
     mock_force_rebalance: bool = False

@@ -15,7 +15,7 @@ from typing import cast
 from app.config import get_settings
 from app.llm.call import parse_call
 from app.llm.provider import LLMProvider
-from app.schemas.content import TypeSet
+from app.schemas.content import ReflectionSpec, TypeSet
 
 TYPE_SET_PROMPT = """\
 You design the decision framework for an executive decision simulation. Working BACKWARD from what
@@ -45,13 +45,29 @@ Rules:
 
 
 async def generate_type_set(
-    subject_matter: str, business_context: str, llm: LLMProvider
+    subject_matter: str,
+    business_context: str,
+    llm: LLMProvider,
+    reflection_spec: "ReflectionSpec | None" = None,
 ) -> TypeSet:
     settings = get_settings()
     input_blob = (
         f"=== SUBJECT_MATTER ===\n{subject_matter}\n\n"
         f"=== BUSINESS_CONTEXT ===\n{business_context}"
     )
+    if reflection_spec is not None:
+        params = "\n".join(
+            f"  - {p.name}: {p.definition}" for p in reflection_spec.outcome_parameters
+        )
+        input_blob += (
+            f"\n\n=== REFLECTION SPEC (AUTHORITATIVE TEACHING FRAME) ===\n"
+            f"Framework: {reflection_spec.framework_name} -- {reflection_spec.framework_definition}\n"
+            f"Learning tension: {reflection_spec.learning_tension}\n"
+            f"Outcome parameters:\n{params}\n"
+            f"Use this learning tension AS the tension your stances resolve (do not invent a "
+            f"different one), and ensure the four stances would move these outcome parameters in "
+            f"visibly different directions."
+        )
     res = await parse_call(
         llm,
         model=settings.llm_model_mid,

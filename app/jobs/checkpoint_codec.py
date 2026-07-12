@@ -16,9 +16,14 @@ from app.pipeline.assemble import (
     RoundParticipantContent,
     TeamBuildResult,
 )
-from app.schemas.content import BalanceReport, CommonData, Decision, NarrativeBible, TypeSet
+from app.schemas.content import BalanceReport, CommonData, Decision, NarrativeBible, ReflectionSpec, TypeSet
 
-_PYDANTIC = {"NarrativeBible": NarrativeBible, "CommonData": CommonData, "TypeSet": TypeSet}
+_PYDANTIC = {
+    "NarrativeBible": NarrativeBible,
+    "CommonData": CommonData,
+    "TypeSet": TypeSet,
+    "ReflectionSpec": ReflectionSpec,
+}
 
 
 def _enc_round(rc: RoundParticipantContent | MemberBuildContent) -> dict[str, Any]:
@@ -40,7 +45,7 @@ def _dec_reports(raw: list[dict]) -> list[BalanceReport]:
 
 
 def encode(value: Any) -> dict[str, Any]:
-    if isinstance(value, NarrativeBible | CommonData | TypeSet):
+    if isinstance(value, NarrativeBible | CommonData | TypeSet | ReflectionSpec):
         return {"t": value.__class__.__name__, "data": value.model_dump()}
     if isinstance(value, ParticipantBuildResult):
         return {

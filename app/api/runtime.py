@@ -1,4 +1,4 @@
-"""Participant runtime API: sessions, posture-stripped decisions, allocations, debrief.
+"""Participant runtime API: sessions, posture-stripped decisions, allocations, reflection.
 
 Decisions are returned with letters only (no posture); submitted letter allocations
 are resolved back to postures server-side before storage. Tenant isolation is enforced
@@ -16,14 +16,12 @@ from app.api import deps
 from app.api.schemas import (
     AllocationsRequest,
     CommitmentRequest,
-    DebriefResponse,
     ReflectionRequest,
     RenderedSessionResponse,
     SessionCreateRequest,
     SessionCreateResponse,
 )
-from app.llm.provider import LLMProvider
-from app.services import debrief_service, generation_service, session_service
+from app.services import generation_service, reflection_service, session_service
 
 router = APIRouter(prefix="/sessions", tags=["runtime"])
 
@@ -99,15 +97,29 @@ async def submit_commitment(
     return {"status": "ok"}
 
 
-@router.get("/{session_id}/debrief", response_model=DebriefResponse)
-async def get_debrief(
+@router.get("/{session_id}/reflection")
+async def get_reflection(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(deps.db_session),
     tenant: uuid.UUID = Depends(deps.tenant_id),
-    provider: LLMProvider = Depends(deps.llm_provider),
-) -> DebriefResponse:
-    debrief, fingerprint = await debrief_service.generate_and_store_debrief(
-        db, tenant, session_id, provider
+) -> dict:
+    """Reflection Board payload: teaching frame + stance lexicon + decision
+    orientation, plus outcome-parameter scores once SME impact weights exist.
+    Deterministic and LLM-free (replaces the retired debrief)."""
+    payload = await reflection_service.build_reflection(db, tenant, session_id)
+    await db.commit()  # fingerprint may have been computed and stored
+    return payload
+
+
+@router.get("/{session_id}/debrief", deprecated=True)
+async def get_debrief(
+    session_id: uuid.UUID,
+) -> None:
+    # Retired: the Reflection Board replaces the LLM-written debrief.
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "The debrief endpoint is retired. Use GET /sessions/{session_id}/reflection "
+            "for the Reflection Board payload."
+        ),
     )
-    await db.commit()
-    return DebriefResponse(fingerprint=fingerprint, debrief=debrief)

@@ -67,6 +67,8 @@ class TeamBuildResult:
     scenario_data: str
     participant_ids: list[str]
     members: dict[str, MemberBuildContent]
+    # ONE shared team situation (identical for every member); "" on legacy builds.
+    situation_data: str = ""
 
 
 BuildResult = ParticipantBuildResult | TeamBuildResult
@@ -117,6 +119,7 @@ def assemble(
                 team_id=t.team_id,
                 team_name=t.team_name,
                 scenario_data=t.scenario_data,
+                situation_data=t.situation_data,
                 participant_ids=t.participant_ids,
                 members=member_map,
             )

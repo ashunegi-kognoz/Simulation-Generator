@@ -5,7 +5,7 @@ async engine stays bound to one event loop):
 
   create (+ idempotent re-create)  ->  run job to completion  ->  create session
   ->  fetch posture-stripped decisions  ->  submit letter allocations
-  ->  verify letter->posture resolution in storage  ->  fingerprint + debrief
+  ->  verify letter->posture resolution in storage  ->  fingerprint + reflection
   ->  tenant isolation
 
 No network and no API key: LLM_PROVIDER=mock.
@@ -48,8 +48,12 @@ from app.services import session_service  # noqa: E402
 DISPLAY_SEED = 12345
 
 
-def _sim_input(tenant_id: str) -> dict:
+def _sim_input(tenant_id: str, engine_version: int = 1) -> dict:
+    # engine_version pinned to 1 by default here: test_full_offline_flow is the
+    # permanent guarantee for the legacy fixed-posture engine. The v2 (default)
+    # engine has its own flow test below.
     return {
+        "engine_version": engine_version,
         "simulation_name": "Offline Flow",
         "company_name": "Apex Horizon Group",
         "business_context": "regional logistics under margin pressure " * 3,
@@ -198,13 +202,19 @@ async def test_full_offline_flow() -> None:
                 assert sum(units.values()) == 100
                 assert set(units) == {"Protect", "Enable", "Hybrid", "Defer"}
 
-        # 7) debrief -> fingerprint persisted + grounded debrief
-        r = await client.get(f"/sessions/{session_id}/debrief", headers=headers_a)
+        # 7) reflection board -> fingerprint math + stance lexicon; debrief retired
+        r = await client.get(f"/sessions/{session_id}/reflection", headers=headers_a)
         assert r.status_code == 200, r.text
         payload = r.json()
-        assert payload["fingerprint"]["n_decisions"] == 2
-        cited = payload["debrief"]["cited_decisions"]
-        assert cited and set(cited).issubset({1, 2})
+        assert payload["orientation"]["n_decisions"] == 2
+        assert len(payload["stances"]) == 4
+        overall = payload["orientation"]["overall"]
+        assert abs(sum(v["share"] for v in overall.values()) - 1.0) < 0.05
+        assert payload["orientation"]["dominant"]["key"] in overall
+        # v1 sim: no framework yet; weights not curated -> pending, no invented scores
+        assert payload["weights_pending"] is True and payload["outcome_scores"] is None
+        r = await client.get(f"/sessions/{session_id}/debrief", headers=headers_a)
+        assert r.status_code == 410
 
         async with sessionmaker() as s:
             sess_row = (
@@ -219,5 +229,91 @@ async def test_full_offline_flow() -> None:
         # no auth (no bearer, no tenant header) -> 401
         r = await client.get(f"/simulations/{sim_id}")
         assert r.status_code == 401
+
+    await dispose_engine()
+
+
+@pytest.mark.asyncio
+async def test_full_offline_flow_v2_default() -> None:
+    """The DEFAULT engine is v2: create with no engine_version, and the whole flow
+    (generate -> session -> allocate -> reflection) runs on dynamic stances."""
+    get_settings.cache_clear()
+    reset_engine_for_tests()
+    reset_semaphore_for_tests()
+
+    async with get_engine().begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    sessionmaker = get_sessionmaker()
+    tenant = uuid.uuid4()
+    async with sessionmaker() as s:
+        s.add(Tenant(id=tenant, name="Tenant V2"))
+        await s.commit()
+
+    from app.main import create_app
+
+    app = create_app()
+    transport = ASGITransport(app=app)
+    headers = {"X-Tenant-Id": str(tenant)}
+
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        body = _sim_input(str(tenant))
+        body.pop("engine_version")  # exercise the DEFAULT (must be v2)
+        r = await client.post("/simulations", json=body, headers=headers)
+        assert r.status_code == 202, r.text
+        sim_id = r.json()["simulation_id"]
+
+        r = await client.post(f"/simulations/{sim_id}/run", headers=headers)
+        assert r.status_code == 200, r.text
+
+        # generated content: reflection spec + type-set present; boards use its keys;
+        # vestigial posture_scheme is dropped on v2
+        r = await client.get(f"/simulations/{sim_id}/content", headers=headers)
+        assert r.status_code == 200, r.text
+        sim_data = r.json()["sim_data"]
+        common = sim_data["common_data"]
+        assert common["reflection_spec"] is not None
+        assert common["type_set"] is not None
+        assert common.get("posture_scheme") is None
+        keys = {st["key"] for st in common["type_set"]["stances"]}
+        assert len(keys) == 4
+        boards = sim_data["rounds"]["round_1"]["participants"]
+        for pc in boards.values():
+            for d in pc["decision_board"]:
+                assert {o["posture"] for o in d["options"]} == keys
+                for o in d["options"]:
+                    assert o.get("impact_weights") is None  # SME placeholder untouched
+
+        # session -> allocate by letters -> reflection on dynamic stances
+        r = await client.post(
+            "/sessions",
+            json={"simulation_id": sim_id, "participant_ref": "p1", "round_index": 1},
+            headers=headers,
+        )
+        assert r.status_code == 201, r.text
+        session_id = r.json()["session_id"]
+        rendered = (await client.get(f"/sessions/{session_id}", headers=headers)).json()
+        payload = {
+            "allocations": [
+                {
+                    "decision_number": d["decision_number"],
+                    "units": {o["letter"]: u for o, u in zip(d["options"], (40, 30, 20, 10))},
+                }
+                for d in rendered["decisions"]
+            ]
+        }
+        r = await client.post(
+            f"/sessions/{session_id}/allocations", json=payload, headers=headers
+        )
+        assert r.status_code == 200, r.text
+
+        r = await client.get(f"/sessions/{session_id}/reflection", headers=headers)
+        assert r.status_code == 200, r.text
+        refl = r.json()
+        assert refl["framework"] is not None
+        assert {s2["key"] for s2 in refl["stances"]} == keys
+        assert set(refl["orientation"]["overall"]) == keys
+        assert refl["orientation"]["dominant"]["key"] in keys
+        assert refl["weights_pending"] is True and refl["outcome_scores"] is None
 
     await dispose_engine()

@@ -36,8 +36,12 @@ from app.schemas.content import (
     kv_str,
     kv_int,
     BalanceReport,
+    BusinessPriority,
     CommonData,
     DynamicStance,
+    OutcomeParameter,
+    PriorityRow,
+    ReflectionSpec,
     TypeSet,
     PostureScheme,
     ConsistencyReport,
@@ -211,11 +215,22 @@ def _common(rng: random.Random) -> CommonData:
         allocation_room_data=_prose(rng.randint(1, 10**9), "The allocation room frames the decision space"),
         business_landscape=_prose(rng.randint(1, 10**9), "The business landscape sets mandate and urgency"),
         business_priorities=[
-            "Protect the core service level",
-            "Fund the shared platform",
-            "Hold the earnings line this quarter",
-            "Sequence the transformation milestones",
-            "Keep key stakeholders aligned",
+            BusinessPriority(
+                title=t,
+                table=[
+                    PriorityRow(item="Current", value="baseline"),
+                    PriorityRow(item="Target", value="improved"),
+                    PriorityRow(item="Deadline", value="quarter-end"),
+                    PriorityRow(item="Owner", value="leadership team"),
+                ],
+            )
+            for t in (
+                "Protect the core service level",
+                "Fund the shared platform",
+                "Hold the earnings line this quarter",
+                "Sequence the transformation milestones",
+                "Keep key stakeholders aligned",
+            )
         ],
         crisis_data=_prose(
             rng.randint(1, 10**9), "The crisis just landed and the room must take positions"
@@ -376,6 +391,35 @@ class MockLLMProvider:
             parsed = ConsistencyReport(contradictions=[])
         elif schema is Debrief:
             parsed = _debrief(input, rng)
+        elif schema is ReflectionSpec:
+            parsed = ReflectionSpec(
+                framework_name="Capacity Planning",
+                framework_definition=(
+                    "How leaders size, sequence, and commit capacity under uncertain demand."
+                ),
+                learning_tension=(
+                    "balancing near-term protection of the current position against investing to "
+                    "expand capacity, under a hard resource constraint"
+                ),
+                outcome_parameters=[
+                    OutcomeParameter(
+                        key="capacity_utilization",
+                        name="Capacity Utilization",
+                        definition="How effectively committed capacity is converted into output.",
+                        what_good_looks_like=(
+                            "Allocations that keep committed capacity productive instead of idle."
+                        ),
+                    ),
+                    OutcomeParameter(
+                        key="profitability",
+                        name="Profitability",
+                        definition="The margin consequence of each capacity commitment.",
+                        what_good_looks_like=(
+                            "Allocations that weigh margin impact before scale impact."
+                        ),
+                    ),
+                ],
+            )
         elif schema is TypeSet:
             parsed = TypeSet(
                 inferred_category="Strategy",

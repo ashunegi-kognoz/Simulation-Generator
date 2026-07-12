@@ -109,16 +109,73 @@ class TypeSet(BaseModel):
         return value
 
 
+class OutcomeParameter(BaseModel):
+    """One measurable outcome the simulation teaches toward (engine-v2)."""
+
+    key: str  # stable lowercase slug, e.g. "cost_efficiency"
+    name: str  # participant-facing name, e.g. "Cost Efficiency"
+    definition: str  # what this parameter measures in THIS simulation
+    what_good_looks_like: str  # observable behavior of a strong performer
+
+
+class ReflectionSpec(BaseModel):
+    """Engine-v2 reflection spec: the teaching frame the simulation is built around.
+
+    Generated FIRST, before any content. Names the reflection framework (the lens
+    participants reflect through), the learning tension, and 2-4 outcome parameters
+    the participant's decisions will be reflected against. The type-set (four
+    stances) is then derived from this spec, and all content is generated in
+    service of it.
+    """
+
+    framework_name: str  # e.g. "Cost Management", "Capacity Planning"
+    framework_definition: str  # what the framework means in this simulation
+    learning_tension: str  # the core trade-off this simulation teaches
+    outcome_parameters: list[OutcomeParameter] = Field(min_length=2, max_length=4)
+
+    @field_validator("outcome_parameters")
+    @classmethod
+    def _distinct_parameter_keys(cls, value: list[OutcomeParameter]) -> list[OutcomeParameter]:
+        keys = [p.key for p in value]
+        if len(set(keys)) != len(keys):
+            raise ValueError("outcome parameter keys must be distinct")
+        return value
+
+
+class PriorityRow(BaseModel):
+    item: str  # generic data/item label
+    value: str  # its value
+
+
+class BusinessPriority(BaseModel):
+    """One shared priority: a headline plus a small supporting table (4-5 rows)."""
+
+    title: str
+    table: list[PriorityRow] = Field(default_factory=list, max_length=5)
+
+
 class CommonData(BaseModel):
     allocation_room_data: str
     business_landscape: str
-    business_priorities: list[str] = Field(min_length=5, max_length=5)
+    business_priorities: list[BusinessPriority] = Field(min_length=5, max_length=5)
+
+    @field_validator("business_priorities", mode="before")
+    @classmethod
+    def _coerce_priorities(cls, v):
+        # Backward compat: pre-table simulations stored plain strings; wrap them so
+        # old content keeps validating and rendering (empty table).
+        if isinstance(v, list):
+            return [{"title": x, "table": []} if isinstance(x, str) else x for x in v]
+        return v
     crisis_data: str
     reflection_board_helping_data: str
     # Optional: simulations generated before the posture-scheme feature won't have
     # one. New generations always produce it (prompt + mock), but editing/saving an
     # older simulation must not fail schema validation because it's absent.
     posture_scheme: PostureScheme | None = None
+    # Engine-v2 only: the teaching frame generated FIRST (framework + outcome
+    # parameters); everything downstream is generated in service of it. None on v1.
+    reflection_spec: ReflectionSpec | None = None
     # Engine-v2 only: the per-simulation dynamic type-set. None on v1 (fixed-posture)
     # simulations, which use posture_scheme instead.
     type_set: TypeSet | None = None
@@ -129,6 +186,10 @@ class Option(BaseModel):
     posture: str  # v1: Protect/Enable/Hybrid/Defer; v2: the sim's declared stance key
     label: str
     content: str  # action + consequence + explicit trade-off
+    # Placeholder for SME-assigned reflection scoring: maps an outcome-parameter key
+    # to this option's impact weight. NEVER model-filled; curated manually after
+    # generation. None until the SME assigns weights.
+    impact_weights: dict[str, float] | None = None
 
 
 class Decision(BaseModel):
@@ -181,6 +242,10 @@ class TeamContent(BaseModel):
     team_id: str
     team_name: str
     scenario_data: str
+    # ONE shared team situation (identical for every member). "" on sims generated
+    # before this field existed; members[*].situation_data remains populated either
+    # way, so downstream consumers keep working.
+    situation_data: str = ""
     participant_ids: list[str]
     members: dict[str, MemberRoundData]
 

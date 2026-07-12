@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Awaitable, TypeVar
+from typing import Awaitable, Callable, TypeVar
 
 from app.config import get_settings
 from app.llm.provider import LLMProvider
@@ -29,12 +29,14 @@ from app.pipeline.assemble import (
     shuffle_positions,
 )
 from app.pipeline.common import common_content
+from app.pipeline.reflection_spec import generate_reflection_spec
+from app.schemas.content import CommonData
 from app.pipeline.type_set import generate_type_set
 from app.pipeline.decisions import build_decisions
 from app.pipeline.normalize import CanonicalSpec, Checkpointer, InMemoryCheckpointer, ParticipantSpec, TeamSpec
 from app.pipeline.reduce import consistency_auditor, editorial_gate, safety_gate
 from app.pipeline.roles import role_smith
-from app.pipeline.teams import member_situation, team_scenario
+from app.pipeline.teams import team_scenario, team_situation
 from app.pipeline.world import bible_json, world_architect
 from app.schemas.content import NarrativeBible
 from app.schemas.metadata import SimulationOutput
@@ -60,12 +62,54 @@ async def guarded(sem: asyncio.Semaphore, coro: Awaitable[T]) -> T:
         return await coro
 
 
-def _context_blob(bible: NarrativeBible, role_data: str, situation: str, ctx_json: str) -> str:
-    # Stable prefix (bible) first; variable role/situation/context last.
+# (done, total, label) -- awaited after each completed wave/team so the caller can
+# persist progress and stream checkpoints.
+ProgressCallback = Callable[[int, int, str], Awaitable[None]]
+
+
+def _context_blob(
+    bible: NarrativeBible, role_data: str, situation: str, ctx_json: str, shared: str = ""
+) -> str:
+    # Stable prefix (bible + frozen shared context) first; variable role/situation last.
+    prefix = f"{bible_json(bible)}"
+    if shared:
+        prefix += f"\n\n{shared}"
     return (
-        f"{bible_json(bible)}\n\n=== ROLE ===\n{role_data}\n=== SITUATION ===\n{situation}\n"
+        f"{prefix}\n\n=== ROLE ===\n{role_data}\n=== SITUATION ===\n{situation}\n"
         f"=== CONTEXT ===\n{ctx_json}"
     )
+
+
+def _shared_context(common: CommonData) -> str:
+    """Compact frozen shared context every participant/team build is anchored to.
+
+    Generated once (Tier 1), then injected into every per-participant call so all
+    40-50 role builds stay consistent with the same facts, priorities, crisis, and
+    teaching frame -- without each call re-deriving them.
+    """
+    parts: list[str] = ["=== FROZEN SHARED CONTEXT (AUTHORITATIVE; DO NOT CONTRADICT) ==="]
+    parts.append(f"BUSINESS LANDSCAPE:\n{common.business_landscape}")
+    pri_lines = []
+    for p in common.business_priorities:
+        row_txt = "; ".join(f"{r.item}={r.value}" for r in p.table)
+        pri_lines.append(f"- {p.title}" + (f" [{row_txt}]" if row_txt else ""))
+    parts.append("SHARED PRIORITIES:\n" + "\n".join(pri_lines))
+    parts.append(f"CRISIS:\n{common.crisis_data}")
+    if common.reflection_spec is not None:
+        rs = common.reflection_spec
+        params = "; ".join(f"{p.name} ({p.definition})" for p in rs.outcome_parameters)
+        parts.append(
+            "TEACHING FRAME:\n"
+            f"Framework: {rs.framework_name} -- {rs.framework_definition}\n"
+            f"Learning tension: {rs.learning_tension}\n"
+            f"Outcome parameters: {params}"
+        )
+    if common.type_set is not None:
+        stance_lines = "\n".join(
+            f"- {st.key}: {st.label} -- {st.definition}" for st in common.type_set.stances
+        )
+        parts.append(f"DECISION STANCES:\n{stance_lines}")
+    return "\n\n".join(parts)
 
 
 async def generate_with_audit(
@@ -73,6 +117,7 @@ async def generate_with_audit(
     llm: LLMProvider,
     checkpoint: Checkpointer | None = None,
     engine_version: int = 1,
+    progress_cb: "ProgressCallback | None" = None,
 ) -> tuple[SimulationOutput, GenerationAudit]:
     settings = get_settings()
     cp = checkpoint or InMemoryCheckpointer()
@@ -88,7 +133,9 @@ async def generate_with_audit(
     if cp.has("common"):
         common = cp.load("common")
     else:
-        common = await common_content(spec, bible, llm)
+        common = await common_content(
+            spec, bible, llm, include_posture_scheme=engine_version < 2
+        )
         cp.save("common", common)
 
     # Engine-v2: derive the per-simulation type-set (learning tension + four dynamic
@@ -98,11 +145,24 @@ async def generate_with_audit(
     posture_keys: list[str] | None = None
     stances = None
     if engine_version >= 2:
+        # v2 sims never carry the legacy scheme (also covers checkpoints written
+        # by older code versions).
+        common.posture_scheme = None
+        # The teaching frame comes FIRST: framework + outcome parameters, then the
+        # type-set is derived from it so the four stances resolve the spec's tension.
+        if cp.has("reflection_spec"):
+            reflection_spec = cp.load("reflection_spec")
+        else:
+            reflection_spec = await generate_reflection_spec(
+                spec.subject_matter, spec.business_context, llm
+            )
+            cp.save("reflection_spec", reflection_spec)
+        common.reflection_spec = reflection_spec
         if cp.has("type_set"):
             type_set = cp.load("type_set")
         else:
             type_set = await generate_type_set(
-                spec.subject_matter, spec.business_context, llm
+                spec.subject_matter, spec.business_context, llm, reflection_spec
             )
             cp.save("type_set", type_set)
         common.type_set = type_set
@@ -118,7 +178,7 @@ async def generate_with_audit(
         ctx_json = p.context.model_dump_json()
         rounds: dict[int, RoundParticipantContent] = {}
         for rp in p.individual_rounds:
-            blob = _context_blob(bible, role_sit.role_data, role_sit.situation_data, ctx_json)
+            blob = _context_blob(bible, role_sit.role_data, role_sit.situation_data, ctx_json, shared_ctx)
             build = await build_decisions(blob, rp.dimensions, llm, posture_keys, stances)
             rounds[rp.index] = RoundParticipantContent(
                 situation_data=role_sit.situation_data,
@@ -141,11 +201,13 @@ async def generate_with_audit(
         # ONE decision board for the whole team: every member sees the same board
         # in a group round (postures still hidden until debrief).
         team_ctx_json = t.members[0].context.model_dump_json() if t.members else ""
-        team_blob = _context_blob(bible, "team cluster", scenario, team_ctx_json)
+        team_blob = _context_blob(bible, "team cluster", scenario, team_ctx_json, shared_ctx)
         team_build = await build_decisions(team_blob, t.dimensions, llm, posture_keys, stances)
+        # ONE shared situation for the whole team (identical for every member) --
+        # a single call instead of one per member.
+        situation = await team_situation(t, scenario, bible, llm)
         members: dict[str, MemberBuildContent] = {}
         for member in t.members:
-            situation = await member_situation(member.context, scenario, bible, llm)
             members[member.participant_id] = MemberBuildContent(
                 situation_data=situation,
                 decision_board=team_build.decisions,
@@ -158,17 +220,41 @@ async def generate_with_audit(
             team_name=t.team_name,
             round_index=t.round_index,
             scenario_data=scenario,
+            situation_data=situation,
             participant_ids=t.participant_ids,
             members=members,
         )
         cp.save(node, result)
         return result
 
+    # Frozen shared context: built ONCE from Tier-1 output, injected into every
+    # per-participant/team call so all builds stay consistent with the same facts.
+    shared_ctx = _shared_context(common)
+
+    # Batched fan-out: participants are generated in small ordered waves instead of
+    # all at once. With 40-50 distinct roles this bounds model load and memory,
+    # yields readable progress, and (with the runner's incremental checkpoint
+    # flush) makes a crash at participant N resume at N, not zero. The semaphore
+    # still caps total in-flight LLM calls.
     sem = asyncio.Semaphore(settings.max_concurrency)
-    tasks: list[Awaitable[BuildResult]] = [
-        guarded(sem, build_participant(p)) for p in spec.participants
-    ] + [guarded(sem, build_team(t)) for t in spec.teams]
-    results: list[BuildResult] = list(await asyncio.gather(*tasks))
+    total = len(spec.participants) + len(spec.teams)
+    done = 0
+    results: list[BuildResult] = []
+
+    batch_size = max(1, settings.participant_batch_size)
+    for start in range(0, len(spec.participants), batch_size):
+        wave = spec.participants[start : start + batch_size]
+        wave_results = await asyncio.gather(*(guarded(sem, build_participant(p)) for p in wave))
+        results.extend(wave_results)
+        done += len(wave)
+        if progress_cb is not None:
+            await progress_cb(done, total, f"participants {done}/{len(spec.participants)}")
+
+    for t in spec.teams:
+        results.append(await guarded(sem, build_team(t)))
+        done += 1
+        if progress_cb is not None:
+            await progress_cb(done, total, f"team {t.team_id}")
 
     _collect_flags(results, audit)
 
@@ -196,9 +282,10 @@ async def generate_simulation(
     llm: LLMProvider,
     checkpoint: Checkpointer | None = None,
     engine_version: int = 1,
+    progress_cb: ProgressCallback | None = None,
 ) -> SimulationOutput:
     """Public entry point matching the Section 8.5 signature."""
-    sim, _ = await generate_with_audit(spec, llm, checkpoint, engine_version)
+    sim, _ = await generate_with_audit(spec, llm, checkpoint, engine_version, progress_cb)
     return sim
 
 

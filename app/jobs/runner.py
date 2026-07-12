@@ -198,8 +198,21 @@ async def process_job(session: AsyncSession, job: Job, provider: LLMProvider) ->
         # release the DB connection before long-running LLM generation so an
         # idle checked-out connection is not closed mid-job.
         await session.commit()
+
+        async def _progress(done: int, total: int, label: str) -> None:
+            # Persist visible progress AND stream completed checkpoints, in one
+            # short transaction. This is what turns a crash at participant N into
+            # a resume at N (hydrate skips persisted nodes) instead of a restart,
+            # and lets the status endpoint show "participants 12/50".
+            job_row = await session.get(Job, job_id)
+            if job_row is not None:
+                job_row.progress_jsonb = {"done": done, "total": total, "stage": label}
+            await checkpoint.flush(session)
+            await session.commit()
+
         sim_out, audit = await generate_with_audit(
-            spec, provider, checkpoint, engine_version=sim.engine_version
+            spec, provider, checkpoint, engine_version=sim.engine_version,
+            progress_cb=_progress,
         )
         await checkpoint.flush(session)
 

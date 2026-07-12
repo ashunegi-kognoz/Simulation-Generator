@@ -44,6 +44,33 @@ async def list_simulations(
     return {"simulations": await generation_service.list_simulations(db, tenant)}
 
 
+@router.post("/reflection-spec-preview")
+async def reflection_spec_preview(
+    body: dict = Body(...),
+    tenant: uuid.UUID = Depends(deps.tenant_id),
+) -> dict:
+    """Preview the engine-v2 reflection spec (framework + outcome parameters) for a
+    given subject/context, without creating a simulation."""
+    from app.config import get_settings
+    from app.llm.call import LLMError, get_provider
+    from app.pipeline.reflection_spec import generate_reflection_spec
+
+    subject_matter = (body.get("subject_matter") or "").strip()
+    business_context = (body.get("business_context") or "").strip()
+    if not subject_matter and not business_context:
+        raise HTTPException(
+            status_code=400, detail="subject_matter or business_context is required."
+        )
+    llm = get_provider(get_settings())
+    try:
+        reflection_spec = await generate_reflection_spec(subject_matter, business_context, llm)
+    except LLMError as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Reflection-spec generation failed: {exc}"
+        ) from exc
+    return reflection_spec.model_dump()
+
+
 @router.post("/type-set-preview")
 async def type_set_preview(
     body: dict = Body(...),

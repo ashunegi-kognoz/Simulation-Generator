@@ -12,6 +12,26 @@ export interface DynamicStance {
   label: string;
   definition: string;
 }
+export interface PriorityRow {
+  item: string;
+  value: string;
+}
+export interface BusinessPriority {
+  title: string;
+  table: PriorityRow[];
+}
+export interface OutcomeParameter {
+  key: string;
+  name: string;
+  definition: string;
+  what_good_looks_like: string;
+}
+export interface ReflectionSpec {
+  framework_name: string;
+  framework_definition: string;
+  learning_tension: string;
+  outcome_parameters: OutcomeParameter[];
+}
 export interface TypeSet {
   inferred_category: string;
   learning_tension: string;
@@ -219,6 +239,7 @@ export interface SimContentTeam {
   team_id: string;
   team_name: string;
   scenario_data: string;
+  situation_data?: string;
   participant_ids: string[];
   members: Record<string, SimContentMember>;
 }
@@ -231,10 +252,11 @@ export interface SimContent {
   common_data: {
     allocation_room_data: string;
     business_landscape: string;
-    business_priorities: string[];
+    business_priorities: (string | BusinessPriority)[];
     crisis_data: string;
     reflection_board_helping_data: string;
     posture_scheme?: PostureScheme;
+    reflection_spec?: ReflectionSpec;
     type_set?: TypeSet;
   };
   rounds: Record<string, SimContentRound>;

@@ -128,8 +128,9 @@ class IntakeNormalizer:
 
         participant_ids = [f"p{i + 1}" for i in range(si.participant_count)]
         roles = si.role_overview
-        # DECISION: role_overview is a pool assigned round-robin; every participant
-        # shares the full kpi_critical_tradeoff list as their dilemma set.
+        # DECISION: role_overview is a pool assigned round-robin. A role that carries
+        # its own kpi_tradeoffs gives the participant exactly those dilemmas; roles
+        # without their own fall back to the shared kpi_critical_tradeoff list.
         contexts: dict[str, GenerationContext] = {}
         for i, pid in enumerate(participant_ids):
             role = roles[i % len(roles)]
@@ -141,7 +142,11 @@ class IntakeNormalizer:
                 reporting_line=role.reporting_line,
                 scope=role.scope,
                 seniority_band=role.seniority_band,
-                kpi_tradeoffs=list(si.kpi_critical_tradeoff),
+                kpi_tradeoffs=(
+                    list(role.kpi_tradeoffs)
+                    if role.kpi_tradeoffs
+                    else list(si.kpi_critical_tradeoff)
+                ),
                 locale=si.locale,
                 role_context=role.context,
             )

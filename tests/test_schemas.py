@@ -130,8 +130,10 @@ def test_simulation_input_valid():
 
 
 def test_simulation_input_rejects_too_many_participants():
+    # Cap raised to 50 for large cohorts (40-50 distinct roles); 50 ok, 51 rejected.
+    assert SimulationInput(**base_input(participant_count=50)).participant_count == 50
     with pytest.raises(ValidationError):
-        SimulationInput(**base_input(participant_count=21))
+        SimulationInput(**base_input(participant_count=51))
 
 
 def test_simulation_input_rejects_team_size_over_4():
