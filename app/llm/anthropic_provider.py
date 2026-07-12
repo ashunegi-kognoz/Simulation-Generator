@@ -90,6 +90,22 @@ def _inject_posture_enum(node: Any, allowed: list[str]) -> None:
         _inject_posture_enum(value, allowed)
 
 
+def _collect_postures(node: Any, acc: set[str] | None = None) -> set[str]:
+    """All `posture` string values anywhere in a parsed payload."""
+    if acc is None:
+        acc = set()
+    if isinstance(node, dict):
+        value = node.get("posture")
+        if isinstance(value, str):
+            acc.add(value)
+        for v in node.values():
+            _collect_postures(v, acc)
+    elif isinstance(node, list):
+        for v in node:
+            _collect_postures(v, acc)
+    return acc
+
+
 def _extract_text(content: list[dict[str, Any]]) -> str | None:
     """Return the JSON text block, skipping any thinking blocks."""
     for block in content:
@@ -180,6 +196,22 @@ class AnthropicProvider:
             raise AnthropicError(
                 f"Claude returned invalid JSON for {schema.__name__}: {exc}", status_code=503
             ) from exc
+
+        if allowed:
+            emitted = sorted(_collect_postures(payload))
+            bad = [p for p in emitted if p not in allowed]
+            if bad:
+                # The schema enum makes this unreachable when THIS code built the
+                # request. Seeing this error therefore proves either (a) the running
+                # process predates the enum injection, or (b) the API ignored the
+                # enum -- and it names both key sets so the report is diagnosable.
+                raise AnthropicError(
+                    "POSTURE-ENUM VIOLATION for "
+                    f"{schema.__name__}: model emitted {bad}, injected enum was "
+                    f"{sorted(allowed)}. If you see this, the enum WAS sent and the "
+                    "API did not enforce it; report this exact message.",
+                    status_code=503,
+                )
         parsed = schema.model_validate(payload, context=validation_context)
 
         raw_usage = data.get("usage") or {}

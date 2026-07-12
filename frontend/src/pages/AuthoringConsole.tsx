@@ -292,7 +292,7 @@ export function AuthoringConsole({
                   </div>
                   <div className="space-y-2">
                     {(role.kpi_tradeoffs ?? []).map((k, j) => (
-                      <div key={j} className="grid gap-2 rounded-lg border border-line p-2 sm:grid-cols-3">
+                      <div key={j} className="grid gap-2 rounded-lg border border-line p-2 sm:grid-cols-4">
                         <Text label="Metric" value={k.metric}
                           onChange={(v) => {
                             const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, metric: v } : x));
@@ -301,6 +301,11 @@ export function AuthoringConsole({
                         <Text label="Target" value={k.target}
                           onChange={(v) => {
                             const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, target: v } : x));
+                            patchRole(i, { kpi_tradeoffs: next });
+                          }} />
+                        <Text label="Current (optional)" value={k.current ?? ""}
+                          onChange={(v) => {
+                            const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, current: v || null } : x));
                             patchRole(i, { kpi_tradeoffs: next });
                           }} />
                         <Text label="Competing pressure" value={k.competing_pressure}

@@ -154,7 +154,7 @@ class DecisionRecord(Base):
     owner_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     round_index: Mapped[int] = mapped_column(Integer, nullable=False)
     decision_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    dimension: Mapped[str] = mapped_column(String(8), nullable=False)
+    dimension: Mapped[str] = mapped_column(String(64), nullable=False)  # focus tag (derived) or legacy MOVE/HOLD/FRAME
     decision_jsonb: Mapped[dict] = mapped_column(JSONB, nullable=False)
     balance_report_jsonb: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     flagged_review: Mapped[bool] = mapped_column(default=False, nullable=False)

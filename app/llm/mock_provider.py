@@ -349,7 +349,7 @@ class MockLLMProvider:
             parsed = _bible(rng)
         elif schema is CommonData:
             parsed = _common(rng)
-        elif schema is DecisionSet:
+        elif isinstance(schema, type) and issubclass(schema, DecisionSet):
             dims_hint = _hint(input, "DIMENSIONS")
             dims = dims_hint.split(",") if dims_hint else list(_DIMENSIONS)
             dims = [d.strip() for d in dims if d.strip() in _DIMENSIONS] or list(_DIMENSIONS)
@@ -360,7 +360,7 @@ class MockLLMProvider:
                 _decision(rng, i + 1, d, name_pick, posture_keys) for i, d in enumerate(dims)
             ]
             parsed = DecisionSet(decisions=decisions)
-        elif schema is Decision:
+        elif isinstance(schema, type) and issubclass(schema, Decision):
             dim = (_hint(input, "DIMENSION") or "MOVE").strip()
             dim = dim if dim in _DIMENSIONS else "MOVE"
             num_hint = _hint(input, "DECISION_NUMBER")

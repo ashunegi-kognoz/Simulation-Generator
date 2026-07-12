@@ -350,11 +350,13 @@ export function DetailsSettings({
                         onChange={(e) => patchDraft((d) => { d.role_overview[i].scope = e.target.value; })} />
                     </div>
                     {(r.kpi_tradeoffs ?? []).map((k, j) => (
-                      <div key={j} className="mt-2 grid gap-2 sm:grid-cols-3">
+                      <div key={j} className="mt-2 grid gap-2 sm:grid-cols-4">
                         <input className="input text-xs" value={k.metric} placeholder="KPI metric"
                           onChange={(e) => patchDraft((d) => { d.role_overview[i].kpi_tradeoffs![j].metric = e.target.value; })} />
                         <input className="input text-xs" value={k.target} placeholder="Target"
                           onChange={(e) => patchDraft((d) => { d.role_overview[i].kpi_tradeoffs![j].target = e.target.value; })} />
+                        <input className="input text-xs" value={k.current ?? ""} placeholder="Current (optional)"
+                          onChange={(e) => patchDraft((d) => { d.role_overview[i].kpi_tradeoffs![j].current = e.target.value || null; })} />
                         <input className="input text-xs" value={k.competing_pressure} placeholder="Competing pressure"
                           onChange={(e) => patchDraft((d) => { d.role_overview[i].kpi_tradeoffs![j].competing_pressure = e.target.value; })} />
                       </div>

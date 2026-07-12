@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import Field, BaseModel
 
 from app.schemas.runtime import Commitment, Reflection, RenderedDecision
 from app.schemas.scoring import Debrief, GroupAnalytics, PostureFingerprint
@@ -24,7 +24,7 @@ class ReviewRequest(BaseModel):
 
 class SessionCreateRequest(BaseModel):
     simulation_id: str
-    participant_ref: str
+    participant_ref: str = Field(max_length=255)
     # Optional: lets a facilitator/test pin the per-session shuffle. Never returned.
     display_seed: int | None = None
 

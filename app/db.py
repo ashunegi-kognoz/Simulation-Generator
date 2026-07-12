@@ -30,6 +30,14 @@ def get_engine() -> AsyncEngine:
     if _engine is None:
         settings = get_settings()
         kwargs: dict[str, Any] = {"echo": False, "future": True}
+        # Hosted Postgres (Neon/Render poolers) closes idle server-side connections;
+        # a pooled client connection can therefore be dead when checked out minutes
+        # later (long LLM generation between DB uses). pre_ping validates on checkout
+        # and transparently replaces dead connections; recycle retires connections
+        # before typical idle-timeout windows.
+        if not settings.database_url.startswith("sqlite"):
+            kwargs["pool_pre_ping"] = True
+            kwargs["pool_recycle"] = 300
         # SQLite (offline dev/tests) gains nothing from pooling; NullPool also avoids
         # cross-event-loop connection finalizer noise at teardown. Postgres keeps the
         # default pool.

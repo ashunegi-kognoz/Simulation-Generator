@@ -105,7 +105,7 @@ async def generate_decision_focuses(
     focuses = cast(DecisionFocusSet, res.output_parsed).focuses
     # Defensive shaping (mirrors the forge): trim extras, pad shortfall by reuse.
     focuses = [
-        f.model_copy(update={"tag": f.tag.strip().upper()}) for f in focuses
+        f.model_copy(update={"tag": f.tag.strip().upper()[:60]}) for f in focuses
     ][:decision_count]
     while len(focuses) < decision_count:
         base = focuses[len(focuses) % max(len(focuses), 1)]

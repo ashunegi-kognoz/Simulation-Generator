@@ -61,7 +61,8 @@ class RoleFieldsExtraction(BaseModel):
 
 class TeamConfig(BaseModel):
     size: int = Field(ge=2, le=4)
-    unique_group_names: list[str]
+    unique_group_names: list[str] = Field(default_factory=list)
+    # (team names land in a VARCHAR(255) column; cap well below it)
     reconciliation: Literal["consensus", "majority", "facilitator"] = "consensus"
     reveal_mode: Literal["anonymized", "named"] = "anonymized"
 
@@ -69,6 +70,8 @@ class TeamConfig(BaseModel):
     def _team_count_within_limit(self) -> "TeamConfig":
         if not self.unique_group_names:
             raise ValueError("team_config.unique_group_names must not be empty")
+        if any(len(n) > 100 for n in self.unique_group_names):
+            raise ValueError("team names must be 100 characters or fewer")
         if len(self.unique_group_names) > MAX_TEAMS:
             raise ValueError(f"at most {MAX_TEAMS} teams are allowed")
         if len(set(self.unique_group_names)) != len(self.unique_group_names):
@@ -100,7 +103,7 @@ class RoundSpec(BaseModel):
 
 
 class SimulationInput(BaseModel):
-    simulation_name: str
+    simulation_name: str = Field(max_length=255)
     simulation_type: str = "immersive-sim"
     company_name: str
     business_context: str

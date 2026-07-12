@@ -204,11 +204,24 @@ async def process_job(session: AsyncSession, job: Job, provider: LLMProvider) ->
             # short transaction. This is what turns a crash at participant N into
             # a resume at N (hydrate skips persisted nodes) instead of a restart,
             # and lets the status endpoint show "participants 12/50".
-            job_row = await session.get(Job, job_id)
-            if job_row is not None:
-                job_row.progress_jsonb = {"done": done, "total": total, "stage": label}
-            await checkpoint.flush(session)
-            await session.commit()
+            #
+            # BEST-EFFORT: a keepalive blip on hosted Postgres must never kill a
+            # long generation. On failure we roll back, restore the checkpoint
+            # dirty-set (so those nodes persist with the final flush), and let
+            # generation continue.
+            pending = set(checkpoint._dirty)
+            try:
+                job_row = await session.get(Job, job_id)
+                if job_row is not None:
+                    job_row.progress_jsonb = {"done": done, "total": total, "stage": label}
+                await checkpoint.flush(session)
+                await session.commit()
+            except Exception:  # noqa: BLE001 - progress is auxiliary by design
+                try:
+                    await session.rollback()
+                except Exception:  # noqa: BLE001
+                    pass
+                checkpoint._dirty |= pending
 
         sim_out, audit = await generate_with_audit(
             spec, provider, checkpoint, engine_version=sim.engine_version,
