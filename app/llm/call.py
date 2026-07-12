@@ -45,6 +45,11 @@ def _is_transient(exc: Exception) -> bool:
     transient_markers = ("ratelimit", "timeout", "apiconnection", "connection", "internalserver", "serviceunavailable")
     if any(m in name for m in transient_markers):
         return True
+    # Schema-validation failures (e.g. a drifted posture key) are worth fresh
+    # attempts: a new sample usually self-corrects, and for Claude the injected
+    # posture enum makes repeats near-impossible anyway.
+    if "validationerror" in name:
+        return True
     status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
     return isinstance(status, int) and status in (408, 409, 429, 500, 502, 503, 504, 529)
 

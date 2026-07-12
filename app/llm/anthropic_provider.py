@@ -67,6 +67,29 @@ def _sanitize_schema(node: Any) -> Any:
     return out
 
 
+def _inject_posture_enum(node: Any, allowed: list[str]) -> None:
+    """Constrain every `posture` string property to the declared stance keys.
+
+    Engine-v2 boards use per-simulation posture keys, so the static Pydantic
+    schema types `posture` as a free string. Injecting the allowed keys as an
+    enum makes structured output GRAMMAR-enforce them -- the model cannot emit
+    an invented key, which is far stronger than prompt instructions alone.
+    """
+    if isinstance(node, list):
+        for item in node:
+            _inject_posture_enum(item, allowed)
+        return
+    if not isinstance(node, dict):
+        return
+    props = node.get("properties")
+    if isinstance(props, dict):
+        posture = props.get("posture")
+        if isinstance(posture, dict) and posture.get("type") == "string":
+            posture["enum"] = list(allowed)
+    for value in node.values():
+        _inject_posture_enum(value, allowed)
+
+
 def _extract_text(content: list[dict[str, Any]]) -> str | None:
     """Return the JSON text block, skipping any thinking blocks."""
     for block in content:
@@ -98,6 +121,10 @@ class AnthropicProvider:
                 status_code=401,
             )
 
+        schema_json = _sanitize_schema(schema.model_json_schema())
+        allowed = (validation_context or {}).get("allowed_postures")
+        if allowed:
+            _inject_posture_enum(schema_json, list(allowed))
         body = {
             "model": model,
             "max_tokens": settings.anthropic_max_tokens,
@@ -106,7 +133,7 @@ class AnthropicProvider:
             "output_config": {
                 "format": {
                     "type": "json_schema",
-                    "schema": _sanitize_schema(schema.model_json_schema()),
+                    "schema": schema_json,
                 }
             },
         }
