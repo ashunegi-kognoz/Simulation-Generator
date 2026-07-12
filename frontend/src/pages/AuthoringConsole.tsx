@@ -2,7 +2,6 @@ import { useState } from "react";
 import { ApiError, api } from "../api/client";
 import type {
   FlaggedDecision,
-  KpiTradeoff,
   RoleOverview,
   RoundSpec,
   SimulationInput,
@@ -42,10 +41,10 @@ function defaultInput(): Omit<SimulationInput, "tenant_id"> {
         scope: "South region",
         seniority_band: "exec",
         gender: "unspecified",
+        kpi_tradeoffs: [
+          { metric: "OTIF", target: "95%", competing_pressure: "freight cost" },
+        ],
       },
-    ],
-    kpi_critical_tradeoff: [
-      { metric: "OTIF", target: "95%", competing_pressure: "freight cost" },
     ],
   };
 }
@@ -87,14 +86,6 @@ export function AuthoringConsole({
     setForm((f) => ({
       ...f,
       role_overview: f.role_overview.map((r, idx) => (idx === i ? { ...r, ...p } : r)),
-    }));
-  }
-  function patchKpi(i: number, p: Partial<KpiTradeoff>) {
-    setForm((f) => ({
-      ...f,
-      kpi_critical_tradeoff: f.kpi_critical_tradeoff.map((k, idx) =>
-        idx === i ? { ...k, ...p } : k,
-      ),
     }));
   }
 
@@ -269,7 +260,7 @@ export function AuthoringConsole({
               patch({
                 role_overview: [
                   ...form.role_overview,
-                  { role_title: "", function: "", entity: form.company_name, reporting_line: "", scope: "", seniority_band: "senior", gender: "unspecified" },
+                  { role_title: "", function: "", entity: form.company_name, reporting_line: "", scope: "", seniority_band: "senior", gender: "unspecified", kpi_tradeoffs: [{ metric: "", target: "", competing_pressure: "" }] },
                 ],
               })
             }
@@ -281,6 +272,57 @@ export function AuthoringConsole({
                 <Text label="Entity" value={role.entity} onChange={(v) => patchRole(i, { entity: v })} />
                 <Text label="Reporting line" value={role.reporting_line} onChange={(v) => patchRole(i, { reporting_line: v })} />
                 <Text label="Scope" value={role.scope} onChange={(v) => patchRole(i, { scope: v })} />
+                <div className="sm:col-span-2">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="eyebrow">KPI trade-offs (this role)</span>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-grass hover:underline"
+                      onClick={() =>
+                        patchRole(i, {
+                          kpi_tradeoffs: [
+                            ...(role.kpi_tradeoffs ?? []),
+                            { metric: "", target: "", competing_pressure: "" },
+                          ],
+                        })
+                      }
+                    >
+                      + Add
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {(role.kpi_tradeoffs ?? []).map((k, j) => (
+                      <div key={j} className="grid gap-2 rounded-lg border border-line p-2 sm:grid-cols-3">
+                        <Text label="Metric" value={k.metric}
+                          onChange={(v) => {
+                            const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, metric: v } : x));
+                            patchRole(i, { kpi_tradeoffs: next });
+                          }} />
+                        <Text label="Target" value={k.target}
+                          onChange={(v) => {
+                            const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, target: v } : x));
+                            patchRole(i, { kpi_tradeoffs: next });
+                          }} />
+                        <Text label="Competing pressure" value={k.competing_pressure}
+                          onChange={(v) => {
+                            const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, competing_pressure: v } : x));
+                            patchRole(i, { kpi_tradeoffs: next });
+                          }} />
+                        {(role.kpi_tradeoffs ?? []).length > 1 && (
+                          <button
+                            type="button"
+                            className="justify-self-start text-xs font-medium text-coral hover:underline sm:col-span-3"
+                            onClick={() =>
+                              patchRole(i, { kpi_tradeoffs: (role.kpi_tradeoffs ?? []).filter((_, idx) => idx !== j) })
+                            }
+                          >
+                            Remove trade-off
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <Select
                   label="Seniority"
                   value={role.seniority_band}
@@ -395,39 +437,6 @@ export function AuthoringConsole({
             ))}
           </Section>
 
-          {/* kpis */}
-          <Section
-            title="Critical KPI tradeoffs"
-            onAdd={() =>
-              patch({
-                kpi_critical_tradeoff: [
-                  ...form.kpi_critical_tradeoff,
-                  { metric: "", target: "", competing_pressure: "" },
-                ],
-              })
-            }
-          >
-            {form.kpi_critical_tradeoff.map((k, i) => (
-              <div key={i} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-3">
-                <Text label="Metric" value={k.metric} onChange={(v) => patchKpi(i, { metric: v })} />
-                <Text label="Target" value={k.target} onChange={(v) => patchKpi(i, { target: v })} />
-                <Text label="Competing pressure" value={k.competing_pressure} onChange={(v) => patchKpi(i, { competing_pressure: v })} />
-                {form.kpi_critical_tradeoff.length > 1 && (
-                  <button
-                    type="button"
-                    className="justify-self-start text-xs font-medium text-coral hover:underline sm:col-span-3"
-                    onClick={() =>
-                      patch({
-                        kpi_critical_tradeoff: form.kpi_critical_tradeoff.filter((_, idx) => idx !== i),
-                      })
-                    }
-                  >
-                    Remove tradeoff
-                  </button>
-                )}
-              </div>
-            ))}
-          </Section>
 
           {error && <Banner tone="error" title="Couldn't generate">{error}</Banner>}
 

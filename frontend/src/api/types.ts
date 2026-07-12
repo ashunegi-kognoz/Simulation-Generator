@@ -92,7 +92,8 @@ export interface SimulationInput {
   participant_count: number;
   rounds: RoundSpec[];
   role_overview: RoleOverview[];
-  kpi_critical_tradeoff: KpiTradeoff[];
+  // Legacy shared pool; roles now carry their own kpi_tradeoffs.
+  kpi_critical_tradeoff?: KpiTradeoff[];
   locale?: string;
   seed?: number | null;
   tenant_id: string;

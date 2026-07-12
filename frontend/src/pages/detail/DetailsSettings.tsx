@@ -198,18 +198,30 @@ export function DetailsSettings({
               <div>
                 <div className="eyebrow mb-2">KPI tradeoffs</div>
                 <ul className="space-y-1.5 text-sm">
-                  {input.kpi_critical_tradeoff.map((k, i) => (
-                    <li key={i} className="rounded-lg border border-line px-3 py-1.5">
-                      <span className="font-medium text-ink">{k.metric}</span>
-                      <span className="text-muted"> → {k.target}</span>
-                      <span className="text-faint"> vs {k.competing_pressure}</span>
-                    </li>
-                  ))}
+                  {input.role_overview.some((r) => (r.kpi_tradeoffs ?? []).length > 0)
+                    ? input.role_overview.flatMap((r, ri) =>
+                        (r.kpi_tradeoffs ?? []).map((k, ki) => (
+                          <li key={`${ri}-${ki}`} className="rounded-lg border border-line px-3 py-1.5">
+                            <span className="num text-xs text-faint">{r.role_title || `Role ${ri + 1}`}</span>
+                            <span className="mx-1 text-faint">·</span>
+                            <span className="font-medium text-ink">{k.metric}</span>
+                            <span className="text-muted"> → {k.target}</span>
+                            <span className="text-faint"> vs {k.competing_pressure}</span>
+                          </li>
+                        )),
+                      )
+                    : (input.kpi_critical_tradeoff ?? []).map((k, i) => (
+                        <li key={i} className="rounded-lg border border-line px-3 py-1.5">
+                          <span className="font-medium text-ink">{k.metric}</span>
+                          <span className="text-muted"> → {k.target}</span>
+                          <span className="text-faint"> vs {k.competing_pressure}</span>
+                        </li>
+                      ))}
                 </ul>
               </div>
             </div>
             <p className="text-xs text-faint">
-              Configuration is read-only after creation. To change it, create a new simulation.
+              To change the configuration, use \u201cEdit inputs & regenerate\u201d below \u2014 it produces a new revision.
             </p>
           </div>
         )}
