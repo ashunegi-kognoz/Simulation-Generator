@@ -105,21 +105,9 @@ async def get_reflection(
 ) -> dict:
     """Reflection Board payload: teaching frame + stance lexicon + decision
     orientation, plus outcome-parameter scores once SME impact weights exist.
-    Deterministic and LLM-free (replaces the retired debrief)."""
+    Deterministic and LLM-free."""
     payload = await reflection_service.build_reflection(db, tenant, session_id)
     await db.commit()  # fingerprint may have been computed and stored
     return payload
 
 
-@router.get("/{session_id}/debrief", deprecated=True)
-async def get_debrief(
-    session_id: uuid.UUID,
-) -> None:
-    # Retired: the Reflection Board replaces the LLM-written debrief.
-    raise HTTPException(
-        status_code=410,
-        detail=(
-            "The debrief endpoint is retired. Use GET /sessions/{session_id}/reflection "
-            "for the Reflection Board payload."
-        ),
-    )

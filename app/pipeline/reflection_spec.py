@@ -16,7 +16,16 @@ from typing import cast
 from app.config import get_settings
 from app.llm.call import parse_call
 from app.llm.provider import LLMProvider
+from pydantic import Field
+
 from app.schemas.content import ReflectionSpec
+
+
+class _ReflectionSpecStrict(ReflectionSpec):
+    """Generation-time schema: the unified engine requires EXACTLY 4 outcome
+    parameters (they double as the four option archetypes on every board)."""
+
+    outcome_parameters: list = Field(min_length=4, max_length=4)
 
 REFLECTION_SPEC_PROMPT = """\
 You design the TEACHING FRAME for an executive decision simulation, BEFORE any content is written.
@@ -27,31 +36,35 @@ Working backward from what leaders in this situation must learn, produce a JSON 
 - framework_definition: one sentence: what this framework means inside THIS simulation.
 - learning_tension: ONE sentence naming the core strategic trade-off a leader here must navigate
   -- the thing the whole simulation exists to teach.
-- outcome_parameters: 2 to 4 measurable outcome dimensions the participant's decisions will be
-  reflected against at the end. For each:
-    * key: short lowercase snake_case slug, unique among the set (e.g. "cost_efficiency").
-    * name: concise participant-facing name (e.g. "Cost Efficiency").
-    * definition: one sentence: what this parameter measures in THIS simulation.
+- outcome_parameters: EXACTLY 4 outcome parameters. These have a DUAL ROLE, so write them
+  carefully:
+  (a) they are the outcome dimensions the participant is reflected against at the end, AND
+  (b) each one is also a LEADERSHIP APPROACH -- every decision in the simulation will offer four
+      options, one embodying each parameter, and the participant allocates 100 units across them.
+  Each parameter must therefore read as a direction a leader can lean toward (e.g. "Cost
+  Visibility", "Margin Recovery", "Commercial Discipline"), NEVER as a bare metric (not
+  "Operating Margin %") and NEVER as something no single option could embody.
+  For each:
+    * key: short lowercase snake_case slug, unique among the four (e.g. "cost_visibility").
+    * name: concise participant-facing name (2-4 words).
+    * definition: one sentence: what leaning toward this looks like in THIS simulation, and what
+      it measures.
     * what_good_looks_like: one sentence describing the observable decision behavior of a strong
       performer on this parameter.
 
-Calibration examples (programme topic -> framework -> outcome parameters):
-- Cost drivers, cost visibility, cost control -> Cost Management -> Cost Efficiency, Profitability
-- Target costing & profitability -> Profitability Thinking -> Profitability
-- Capacity creation dilemma -> Capacity Planning -> Capacity Utilization, Profitability
-- ESG & financial materiality -> ESG Framework -> ESG Performance
-- Employee relations & collective bargaining -> Employee Relations -> Employee Relations
-- Supply chain risk management -> Supply Chain Resilience -> Supply Chain Resilience
-- Spend analysis & e-procurement -> Procurement Strategy -> Procurement Effectiveness
-These are examples of the MAPPING STYLE, not a menu: derive the framework and parameters from the
-subject matter and business context you are given, even if they match nothing above.
+Calibration examples (programme topic -> framework -> example parameters):
+- Cost drivers, cost visibility, cost control -> Cost Management -> Cost Visibility, Margin
+  Recovery, Commercial Discipline, Cash and Execution Control
+- Capacity creation dilemma -> Capacity Planning -> Capacity Commitment, Demand Protection,
+  Financial Discipline, Execution Reliability
+These show the MAPPING STYLE, not a menu: derive the framework and parameters from the subject
+matter and business context you are given.
 
 Rules:
-- The framework must be the lens that best captures what THIS scenario forces a leader to learn.
-- Parameters must be genuinely distinct, observable through allocation decisions, and few (2-4);
-  prefer 2-3 sharply distinct parameters over 4 overlapping ones.
-- Every parameter must be traceable to the learning_tension: navigating the tension well should
-  show up as movement on these parameters.
+- Exactly 4 parameters; genuinely distinct directions that together span the learning_tension.
+- The four must be in real tension with each other: a leader cannot fully serve all four at once,
+  which is what makes the 100-unit allocation meaningful.
+- Every parameter must be expressible as a concrete option on a business decision.
 - Plain, concrete business language. No jargon, no filler.
 - Return JSON only, no commentary.
 """
@@ -70,7 +83,11 @@ async def generate_reflection_spec(
         model=settings.llm_model_mid,
         instructions=REFLECTION_SPEC_PROMPT,
         input=input_blob,
-        schema=ReflectionSpec,
+        schema=_ReflectionSpecStrict,
         store=False,
     )
-    return cast(ReflectionSpec, res.output_parsed)
+    strict = cast(ReflectionSpec, res.output_parsed)
+    # Down-cast to the base class so checkpoint encode/decode sees the registered
+    # type name; the strict subclass exists only to make "exactly 4 parameters" a
+    # schema violation (and therefore retryable) at parse time.
+    return ReflectionSpec.model_validate(strict.model_dump())

@@ -225,15 +225,6 @@ class GroupAnalyticsRecord(Base):
     analytics_jsonb: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
 
-class DebriefRecord(Base):
-    __tablename__ = "debriefs"
-    id: Mapped[uuid.UUID] = _uuid_pk()
-    session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False, index=True
-    )
-    debrief_jsonb: Mapped[dict] = mapped_column(JSONB, nullable=False)
-
-
 class GenerationRun(Base):
     __tablename__ = "generation_runs"  # append-only audit log
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -297,7 +288,6 @@ __all__ = [
     "CommitmentRecord",
     "FingerprintRecord",
     "GroupAnalyticsRecord",
-    "DebriefRecord",
     "GenerationRun",
     "ReviewAction",
     "Job",

@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { ApiError, api } from "../api/client";
-import type { DebriefResponse, Letter, LetterUnits, RenderedSession } from "../api/types";
+import type { Letter, LetterUnits, ReflectionBoardResponse, RenderedSession } from "../api/types";
 import { AllocationMeter } from "../components/AllocationMeter";
-import { PostureFingerprintView } from "../components/PostureFingerprint";
 import { Banner, Panel, Spinner } from "../components/ui";
 import { emptyUnits, isBalanced, withUnit } from "../lib/allocation";
 
-type Phase = "open" | "allocate" | "reflect" | "debrief";
+type Phase = "open" | "allocate" | "board";
 
 export function ParticipantRuntime({
   token,
@@ -24,9 +23,7 @@ export function ParticipantRuntime({
 
   const [session, setSession] = useState<RenderedSession | null>(null);
   const [units, setUnits] = useState<Record<number, LetterUnits>>({});
-  const [reflection, setReflection] = useState({ considered_most: "", resisted: "", uncertain: "" });
-  const [commitment, setCommitment] = useState({ action: "", share_with: "", by_when: "" });
-  const [debrief, setDebrief] = useState<DebriefResponse | null>(null);
+  const [board, setBoard] = useState<ReflectionBoardResponse | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,34 +71,13 @@ export function ParticipantRuntime({
         token,
         session.decisions.map((d) => ({ decision_number: d.decision_number, units: units[d.decision_number] })),
       );
-      setPhase("reflect");
+      // Straight to the Reflection Board: the board is computed deterministically
+      // from the allocations just submitted -- no interstitial step.
+      const b = await api.getReflection(session.session_id, token);
+      setBoard(b);
+      setPhase("board");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Submission failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitReflectAndCommit() {
-    if (!session) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const firstDecision = session.decisions[0]?.decision_number ?? 1;
-      if (reflection.considered_most || reflection.resisted || reflection.uncertain) {
-        await api.submitReflection(session.session_id, token, {
-          decision_number: firstDecision,
-          reflection,
-        });
-      }
-      if (commitment.action && commitment.share_with && commitment.by_when) {
-        await api.submitCommitment(session.session_id, token, commitment);
-      }
-      const d = await api.getDebrief(session.session_id, token);
-      setDebrief(d);
-      setPhase("debrief");
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't generate the debrief.");
     } finally {
       setBusy(false);
     }
@@ -124,8 +100,8 @@ export function ParticipantRuntime({
             {busy && <Spinner />}
           </div>
           <p className="mt-3 text-xs text-muted">
-            You'll see four options per decision, labelled A–D. The stance behind each option stays
-            hidden until your debrief.
+            You'll see four options per decision, labelled A–D. The outcome parameter behind each
+            option stays hidden while you allocate; your Reflection Board reveals the mapping.
           </p>
         </Panel>
       )}
@@ -157,7 +133,7 @@ export function ParticipantRuntime({
           {error && <Banner tone="error">{error}</Banner>}
           <div className="flex items-center gap-3">
             <button className="btn-primary" onClick={submitAllocations} disabled={busy || !allBalanced}>
-              Submit allocations
+              {busy ? "Building your Reflection Board…" : "Submit allocations"}
             </button>
             {!allBalanced && (
               <span className="text-sm text-muted">Each decision must total exactly 100 to submit.</span>
@@ -166,48 +142,69 @@ export function ParticipantRuntime({
         </>
       )}
 
-      {phase === "reflect" && session && (
-        <Panel eyebrow="Reflect" title="Before your debrief">
-          <div className="space-y-4">
-            <p className="text-sm text-muted">Optional — a few words sharpen the debrief.</p>
-            <Area label="What did you weigh most?" value={reflection.considered_most} onChange={(v) => setReflection((r) => ({ ...r, considered_most: v }))} />
-            <Area label="What did you resist?" value={reflection.resisted} onChange={(v) => setReflection((r) => ({ ...r, resisted: v }))} />
-            <Area label="Where are you still uncertain?" value={reflection.uncertain} onChange={(v) => setReflection((r) => ({ ...r, uncertain: v }))} />
-
-            <div className="border-t border-line pt-4">
-              <h3 className="eyebrow mb-3">Commitment (optional)</h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="Action you'll take" value={commitment.action} onChange={(v) => setCommitment((c) => ({ ...c, action: v }))} />
-                <Field label="Share it with" value={commitment.share_with} onChange={(v) => setCommitment((c) => ({ ...c, share_with: v }))} />
-                <Field label="By when" value={commitment.by_when} onChange={(v) => setCommitment((c) => ({ ...c, by_when: v }))} />
-              </div>
-            </div>
-
-            {error && <Banner tone="error">{error}</Banner>}
-            <button className="btn-primary" onClick={submitReflectAndCommit} disabled={busy}>
-              {busy ? "Preparing debrief…" : "Generate debrief"}
-            </button>
-          </div>
-        </Panel>
-      )}
-
-      {phase === "debrief" && debrief && (
+      {phase === "board" && board && (
         <>
-          <Panel eyebrow="Debrief" title="Your posture fingerprint">
-            <PostureFingerprintView fingerprint={debrief.fingerprint} />
-          </Panel>
-          <Panel eyebrow="Reading" title={debrief.debrief.pattern_summary}>
-            <div className="space-y-4 text-sm leading-relaxed text-ink">
-              <DebriefBlock label="Interpretation" body={debrief.debrief.interpretation} />
-              <DebriefBlock label="Tension you navigated" body={debrief.debrief.tension_navigated} />
-              <DebriefBlock label="Possible blind spot" body={debrief.debrief.blind_spot} />
-              <DebriefBlock label="Carry it forward" body={debrief.debrief.transfer_prompt} />
-              <div className="text-xs text-muted">
-                Grounded in decisions{" "}
-                <span className="num">{debrief.debrief.cited_decisions.join(", ")}</span>.
+          {board.framework && (
+            <Panel eyebrow="Reflection Board" title={board.framework.framework_name}>
+              <div className="space-y-3 text-sm leading-relaxed text-ink">
+                <p>{board.framework.framework_definition}</p>
+                <div>
+                  <div className="eyebrow mb-1">The tension you navigated</div>
+                  <p className="text-muted">{board.framework.learning_tension}</p>
+                </div>
               </div>
-            </div>
-          </Panel>
+            </Panel>
+          )}
+
+          {Object.entries(board.rounds).map(([roundIndex, round]) => (
+            <Panel
+              key={roundIndex}
+              eyebrow={`Round ${roundIndex}`}
+              title="Where your units went"
+            >
+              <div className="space-y-5">
+                {board.outcome_parameters.map((p) => {
+                  const cell = round.parameters[p.key];
+                  if (!cell) return null;
+                  const pct = Math.round(cell.score * 100);
+                  return (
+                    <div key={p.key}>
+                      <div className="mb-1 flex items-baseline justify-between gap-3">
+                        <span className="text-sm font-medium text-ink">{p.name}</span>
+                        <span className="num text-sm text-ink">
+                          {pct}%<span className="ml-2 text-xs text-muted">({cell.units} units)</span>
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-line/60">
+                        <div className="h-full rounded-full bg-ink/70" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="mt-1.5 text-xs leading-relaxed text-muted">{p.definition}</p>
+                    </div>
+                  );
+                })}
+                <div className="border-t border-line pt-3 text-xs text-muted">
+                  <span className="num">{round.total_units}</span> units allocated this round. Shares
+                  are your own allocation — every unit you placed on an option counted toward that
+                  option's outcome parameter.
+                </div>
+              </div>
+            </Panel>
+          ))}
+
+          {board.outcome_parameters.some((p) => p.what_good_looks_like) && (
+            <Panel eyebrow="Read your pattern" title="What strong performance looks like">
+              <div className="space-y-3 text-sm leading-relaxed">
+                {board.outcome_parameters.map((p) =>
+                  p.what_good_looks_like ? (
+                    <div key={p.key}>
+                      <div className="eyebrow mb-0.5">{p.name}</div>
+                      <p className="text-muted">{p.what_good_looks_like}</p>
+                    </div>
+                  ) : null,
+                )}
+              </div>
+            </Panel>
+          )}
         </>
       )}
     </div>
@@ -233,22 +230,6 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-    </div>
-  );
-}
-function Area({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <div>
-      <label className="label">{label}</label>
-      <textarea className="input min-h-[64px] resize-y" value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-function DebriefBlock({ label, body }: { label: string; body: string }) {
-  return (
-    <div>
-      <div className="eyebrow mb-1">{label}</div>
-      <p>{body}</p>
     </div>
   );
 }

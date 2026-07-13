@@ -1,7 +1,7 @@
 """Deterministic offline mock provider (Section 9.3).
 
 Inspects the requested Pydantic `schema` and returns a valid instance seeded by a
-hash of `input`, so the whole pipeline, gates, scoring, debrief, API, and tests
+hash of `input`, so the whole pipeline, gates, scoring, API, and tests
 run with no API key and reproduce identically for a given input.
 
 Quality contracts honored:
@@ -55,7 +55,6 @@ from app.schemas.content import (
     SituationText,
     Stakeholder,
 )
-from app.schemas.scoring import Debrief
 from app.llm.provider import ParsedResult
 
 # Canonical posture order for option generation.
@@ -217,6 +216,10 @@ def _common(rng: random.Random) -> CommonData:
         business_priorities=[
             BusinessPriority(
                 title=t,
+                description=(
+                    "Why this matters now: it protects the quarter's commitments while "
+                    "the cost plan takes shape across both mills."
+                ),
                 table=[
                     PriorityRow(item="Current", value="baseline"),
                     PriorityRow(item="Target", value="improved"),
@@ -235,9 +238,7 @@ def _common(rng: random.Random) -> CommonData:
         crisis_data=_prose(
             rng.randint(1, 10**9), "The crisis just landed and the room must take positions"
         ),
-        reflection_board_helping_data=_prose(
-            rng.randint(1, 10**9), "Reflection links decision patterns to systems and polarities"
-        ),
+        reflection_board_helping_data="",
         posture_scheme=PostureScheme(
             inferred_category="Strategy",
             protect_label="Hold the Line",
@@ -252,44 +253,6 @@ def _common(rng: random.Random) -> CommonData:
     )
 
 
-def _debrief(text: str, rng: random.Random) -> Debrief:
-    nums_hint = _hint(text, "DECISION_NUMBERS")
-    cited = [int(x) for x in nums_hint.split(",") if x.strip().isdigit()] if nums_hint else [1]
-    underfunded = _hint(text, "UNDERFUNDED")
-    blind = underfunded.split(",")[0].strip() if underfunded else "Defer"
-    return Debrief(
-        pattern_summary=_pad_to_words(
-            f"Across decisions {cited}, the weight concentrated on a familiar posture while one option "
-            f"stayed light. The split is consistent rather than reactive, which says something stable.",
-            55,
-        ),
-        interpretation=_pad_to_words(
-            "In construct terms the pattern reads as a steady preference for defending known ground, "
-            "with measured openness to building outside the immediate mandate.",
-            40,
-        ),
-        tension_navigated=_pad_to_words(
-            "The tension was between protecting near term performance and funding durable shared capacity, "
-            "and the allocations leaned toward the first.",
-            35,
-        ),
-        blind_spot=_pad_to_words(
-            f"The {blind} posture was under funded across these decisions, which is the blind spot: the "
-            f"option that preserves optionality or builds beyond the mandate rarely drew real weight.",
-            40,
-        ),
-        transfer_prompt=_pad_to_words(
-            "On the real decision on your desk this quarter, name the one place you are defending out of "
-            "habit and test what a deliberate bet would cost.",
-            35,
-        ),
-        cited_decisions=cited,
-    )
-
-
-# --------------------------------------------------------------------------- #
-# generic fallback for any other BaseModel
-# --------------------------------------------------------------------------- #
 def _fill_annotation(ann: Any, rng: random.Random) -> Any:
     origin = get_origin(ann)
     if isinstance(ann, type) and issubclass(ann, BaseModel):
@@ -389,8 +352,6 @@ class MockLLMProvider:
             parsed = NaiveScores(scores=kv_int(scores))
         elif schema is ConsistencyReport:
             parsed = ConsistencyReport(contradictions=[])
-        elif schema is Debrief:
-            parsed = _debrief(input, rng)
         elif schema.__name__ == "DecisionFocusSet":
             from app.pipeline.decision_focus import DecisionFocus, DecisionFocusSet
             n = int(_hint(input, "FOCUS_COUNT") or "3")
@@ -405,7 +366,7 @@ class MockLLMProvider:
             parsed = DecisionFocusSet(
                 focuses=[DecisionFocus(tag=t, description=d) for t, d in base[:n]]
             )
-        elif schema is ReflectionSpec:
+        elif isinstance(schema, type) and issubclass(schema, ReflectionSpec):
             parsed = ReflectionSpec(
                 framework_name="Capacity Planning",
                 framework_definition=(
@@ -417,19 +378,35 @@ class MockLLMProvider:
                 ),
                 outcome_parameters=[
                     OutcomeParameter(
-                        key="capacity_utilization",
-                        name="Capacity Utilization",
-                        definition="How effectively committed capacity is converted into output.",
+                        key="capacity_commitment",
+                        name="Capacity Commitment",
+                        definition="Leaning toward expanding committed capacity ahead of demand.",
                         what_good_looks_like=(
-                            "Allocations that keep committed capacity productive instead of idle."
+                            "Backs expansion where the demand case is strongest."
                         ),
                     ),
                     OutcomeParameter(
-                        key="profitability",
-                        name="Profitability",
-                        definition="The margin consequence of each capacity commitment.",
+                        key="demand_protection",
+                        name="Demand Protection",
+                        definition="Leaning toward defending current customers and service levels.",
                         what_good_looks_like=(
-                            "Allocations that weigh margin impact before scale impact."
+                            "Protects the base before chasing new volume."
+                        ),
+                    ),
+                    OutcomeParameter(
+                        key="financial_discipline",
+                        name="Financial Discipline",
+                        definition="Leaning toward margin, cash, and payback before scale.",
+                        what_good_looks_like=(
+                            "Weighs margin impact before scale impact."
+                        ),
+                    ),
+                    OutcomeParameter(
+                        key="execution_reliability",
+                        name="Execution Reliability",
+                        definition="Leaning toward sequencing change without breaking delivery.",
+                        what_good_looks_like=(
+                            "Phases moves to keep commitments intact."
                         ),
                     ),
                 ],

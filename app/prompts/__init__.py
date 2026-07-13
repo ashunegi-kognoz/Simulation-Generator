@@ -10,13 +10,12 @@ from __future__ import annotations
 # --- versions ---
 FORGE_PROMPT_V = "forge.v5"
 WORLD_PROMPT_V = "world.v4"
-COMMON_PROMPT_V = "common.v7"
+COMMON_PROMPT_V = "common.v8"
 ROLE_PROMPT_V = "role.v7"
 TEAM_PROMPT_V = "team.v5"
 BALANCE_PROMPT_V = "balance.v3"
 NAIVE_PROMPT_V = "naive.v2"
 CONSISTENCY_PROMPT_V = "consistency.v3"
-DEBRIEF_PROMPT_V = "debrief.v3"
 
 # --- 10.1 DecisionForge (the master prompt) ---
 FORGE_PROMPT = """\
@@ -316,7 +315,8 @@ REQUIREMENTS BY FIELD
   interpretation. STRUCTURE: at most 6 short paragraphs of 30-40 words each, separated by blank
   lines; each paragraph covers one theme. Total must stay compact.
 - business_priorities: exactly five shared priorities, distinct and decision-relevant. Each is an
-  object with: title (one crisp priority statement, <= 15 words) and table (4-5 rows of
+  object with: title (one crisp priority statement, <= 15 words), description (20-30 words
+  expanding why this priority matters now and what is at stake), and table (4-5 rows of
   {item, value} pairs grounding the priority in data: metrics, targets, deadlines, owners, or
   exposures drawn from the business context; values must be concrete, consistent with every other
   section, and never invented beyond plausibility).
@@ -341,7 +341,7 @@ REQUIREMENTS BY FIELD
   stance's meaning: a protect label describes defending the current position (never restructuring
   or cutting it); an enable label describes investing or expanding (never pure cost control).
   Verify each label against its definition before returning.
-- reflection_board_helping_data:
+- reflection_board_helping_data: set to an empty string; this section is no longer used.
 
   Generate facilitator discussion prompts only.
 
@@ -353,7 +353,7 @@ REQUIREMENTS BY FIELD
 
   Focus only on observable allocation themes,
   business outcomes,
-  and discussion questions that can be explored during debrief.
+
 
   Reflection guidance must never reveal
   what participants should have done.
@@ -494,22 +494,7 @@ Verify consistency across:
 Return JSON only: contradictions (list of short, specific findings). Return an empty list when clean.
 """
 
-# --- 10.7 DebriefWriter ---
-DEBRIEF_PROMPT = """\
-Write an evidence-based executive debrief from posture fingerprint + actual allocations.
 
-RULES
-- Every interpretation must be traceable to provided participant data.
-- Cite supporting decision numbers for each major claim.
-- Never invent allocations or outcomes.
-- Use constructive language, never pass/fail judgment.
-- Name the blind spot as an under-funded posture supported by data.
-- If a LEXICON is provided, refer to each stance by its label (never its raw key);
-  the LEXICON maps each key to its label and definition for this simulation.
-- Keep concise, practical, and transfer-oriented.
-
-Return JSON only matching the debrief schema.
-"""
 
 PROMPT_VERSIONS: dict[str, str] = {
     "forge": FORGE_PROMPT_V,
@@ -520,5 +505,4 @@ PROMPT_VERSIONS: dict[str, str] = {
     "balance": BALANCE_PROMPT_V,
     "naive": NAIVE_PROMPT_V,
     "consistency": CONSISTENCY_PROMPT_V,
-    "debrief": DEBRIEF_PROMPT_V,
 }

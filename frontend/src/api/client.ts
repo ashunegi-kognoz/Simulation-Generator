@@ -2,7 +2,7 @@ import type {
   AuthResponse,
   Commitment,
   CreateSimulationResponse,
-  DebriefResponse,
+  ReflectionBoardResponse,
   FlaggedDecision,
   GroupAnalytics,
   LetterUnits,
@@ -246,8 +246,8 @@ export const api = {
       token,
     }),
 
-  getDebrief: (sessionId: string, token: string) =>
-    request<DebriefResponse>(`/sessions/${sessionId}/debrief`, { token }),
+  getReflection: (sessionId: string, token: string) =>
+    request<ReflectionBoardResponse>(`/sessions/${sessionId}/reflection`, { token }),
 
   // ---- groups ----
   reconcileTeam: (

@@ -95,8 +95,8 @@ export default function App() {
 
       <footer className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
         {/* <p className="text-xs text-faint">
-          AI Simulation Maker · runs fully offline with the mock provider · stances stay hidden from
-          participants until debrief.
+          AI Simulation Maker · runs fully offline with the mock provider · outcome parameters stay hidden from
+          participants until their Reflection Board.
         </p> */}
       </footer>
     </div>

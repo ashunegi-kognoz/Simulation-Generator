@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field, BaseModel
 
 from app.schemas.runtime import Commitment, Reflection, RenderedDecision
-from app.schemas.scoring import Debrief, GroupAnalytics, PostureFingerprint
+from app.schemas.scoring import GroupAnalytics, PostureFingerprint
 
 
 class CreateSimulationResponse(BaseModel):
@@ -56,10 +56,6 @@ class ReflectionRequest(BaseModel):
 class CommitmentRequest(BaseModel):
     commitment: Commitment
 
-
-class DebriefResponse(BaseModel):
-    fingerprint: PostureFingerprint
-    debrief: Debrief
 
 
 class ReconcileItem(BaseModel):

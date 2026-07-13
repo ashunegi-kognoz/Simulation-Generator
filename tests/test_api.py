@@ -202,19 +202,20 @@ async def test_full_offline_flow() -> None:
                 assert sum(units.values()) == 100
                 assert set(units) == {"Protect", "Enable", "Hybrid", "Defer"}
 
-        # 7) reflection board -> fingerprint math + stance lexicon; debrief retired
+        # 7) reflection board -> round-wise allocation shares over the parameters
         r = await client.get(f"/sessions/{session_id}/reflection", headers=headers_a)
         assert r.status_code == 200, r.text
         payload = r.json()
-        assert payload["orientation"]["n_decisions"] == 2
-        assert len(payload["stances"]) == 4
-        overall = payload["orientation"]["overall"]
-        assert abs(sum(v["share"] for v in overall.values()) - 1.0) < 0.05
-        assert payload["orientation"]["dominant"]["key"] in overall
-        # v1 sim: no framework yet; weights not curated -> pending, no invented scores
-        assert payload["weights_pending"] is True and payload["outcome_scores"] is None
-        r = await client.get(f"/sessions/{session_id}/debrief", headers=headers_a)
-        assert r.status_code == 410
+        assert len(payload["outcome_parameters"]) == 4
+        assert payload["framework"] is None  # v1 sim: no reflection spec
+        rounds = payload["rounds"]
+        assert set(rounds) == {"1"}
+        r1 = rounds["1"]
+        assert r1["total_units"] == 200  # 2 decisions x 100 units
+        shares = [p["score"] for p in r1["parameters"].values()]
+        assert abs(sum(shares) - 1.0) < 0.01
+        units = [p["units"] for p in r1["parameters"].values()]
+        assert sum(units) == 200  # raw values preserved alongside presentation
 
         async with sessionmaker() as s:
             sess_row = (
@@ -289,8 +290,6 @@ async def test_full_offline_flow_v2_default() -> None:
         for pc in boards.values():
             for d in pc["decision_board"]:
                 assert {o["posture"] for o in d["options"]} == keys
-                for o in d["options"]:
-                    assert o.get("impact_weights") is None  # SME placeholder untouched
 
         # session -> allocate by letters -> reflection on dynamic stances
         r = await client.post(
@@ -318,10 +317,14 @@ async def test_full_offline_flow_v2_default() -> None:
         r = await client.get(f"/sessions/{session_id}/reflection", headers=headers)
         assert r.status_code == 200, r.text
         refl = r.json()
+        # UNIFIED ENGINE: the outcome parameters ARE the option keys, and scores
+        # are the participant's own allocation shares -- no weights anywhere.
         assert refl["framework"] is not None
-        assert {s2["key"] for s2 in refl["stances"]} == keys
-        assert set(refl["orientation"]["overall"]) == keys
-        assert refl["orientation"]["dominant"]["key"] in keys
-        assert refl["weights_pending"] is True and refl["outcome_scores"] is None
+        param_keys = {p["key"] for p in refl["outcome_parameters"]}
+        assert param_keys == keys
+        round_scores = refl["rounds"]["1"]["parameters"]
+        assert set(round_scores) == keys
+        assert refl["rounds"]["1"]["total_units"] == 200
+        assert abs(sum(p["score"] for p in round_scores.values()) - 1.0) < 0.01
 
     await dispose_engine()

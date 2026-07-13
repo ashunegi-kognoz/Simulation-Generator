@@ -131,6 +131,9 @@ class ReflectionSpec(BaseModel):
     framework_name: str  # e.g. "Cost Management", "Capacity Planning"
     framework_definition: str  # what the framework means in this simulation
     learning_tension: str  # the core trade-off this simulation teaches
+    # New generations always produce exactly 4 (they double as the four option
+    # archetypes on every decision board); min stays 2 so pre-unification stored
+    # sims keep validating on read.
     outcome_parameters: list[OutcomeParameter] = Field(min_length=2, max_length=4)
 
     @field_validator("outcome_parameters")
@@ -148,9 +151,11 @@ class PriorityRow(BaseModel):
 
 
 class BusinessPriority(BaseModel):
-    """One shared priority: a headline plus a small supporting table (4-5 rows)."""
+    """One shared priority: a headline, a short description, and a small
+    supporting table (4-5 rows)."""
 
     title: str
+    description: str = ""  # 20-30 words expanding the title; "" on older sims
     table: list[PriorityRow] = Field(default_factory=list, max_length=5)
 
 
@@ -168,7 +173,9 @@ class CommonData(BaseModel):
             return [{"title": x, "table": []} if isinstance(x, str) else x for x in v]
         return v
     crisis_data: str
-    reflection_board_helping_data: str
+    # Retired: facilitator prompts are no longer generated (the Reflection Board
+    # is fully data-driven). Optional so pre-retirement sims keep validating.
+    reflection_board_helping_data: str = ""
     # Optional: simulations generated before the posture-scheme feature won't have
     # one. New generations always produce it (prompt + mock), but editing/saving an
     # older simulation must not fail schema validation because it's absent.
@@ -186,10 +193,6 @@ class Option(BaseModel):
     posture: str  # v1: Protect/Enable/Hybrid/Defer; v2: the sim's declared stance key
     label: str
     content: str  # action + consequence + explicit trade-off
-    # Placeholder for SME-assigned reflection scoring: maps an outcome-parameter key
-    # to this option's impact weight. NEVER model-filled; curated manually after
-    # generation. None until the SME assigns weights.
-    impact_weights: dict[str, float] | None = None
 
 
 class Decision(BaseModel):

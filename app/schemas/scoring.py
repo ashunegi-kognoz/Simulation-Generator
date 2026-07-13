@@ -1,5 +1,4 @@
-"""Scoring, group-analytics, and debrief output schemas (computed deterministically
-in Part 2's engines, except the debrief prose which the LLM writes)."""
+"""Scoring and group-analytics output schemas (computed deterministically)."""
 
 from __future__ import annotations
 
@@ -34,10 +33,3 @@ class GroupAnalytics(BaseModel):
     posture_diversity: float
 
 
-class Debrief(BaseModel):
-    pattern_summary: str
-    interpretation: str
-    tension_navigated: str
-    blind_spot: str
-    transfer_prompt: str
-    cited_decisions: list[int]

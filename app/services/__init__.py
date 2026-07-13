@@ -1,7 +1,6 @@
-"""Service layer: intake/lifecycle, runtime, scoring, and debrief over the ORM."""
+"""Service layer: intake/lifecycle, runtime, scoring, and reflection over the ORM."""
 
 from app.services import (
-    debrief_service,
     generation_service,
     scoring_service,
     session_service,
@@ -12,7 +11,6 @@ __all__ = [
     "generation_service",
     "session_service",
     "scoring_service",
-    "debrief_service",
     "ServiceError",
     "NotFoundError",
     "ConflictError",

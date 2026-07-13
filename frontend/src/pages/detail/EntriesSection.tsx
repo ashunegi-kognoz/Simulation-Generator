@@ -488,6 +488,14 @@ export function EntriesSection({
                           set(["common_data", "business_priorities", i, "title"], e.target.value)
                         }
                       />
+                      <textarea
+                        className="input mt-2 min-h-[52px] w-full resize-y text-xs"
+                        placeholder="Short description (20–30 words) of why this priority matters now"
+                        value={p.description ?? ""}
+                        onChange={(e) =>
+                          set(["common_data", "business_priorities", i, "description"], e.target.value)
+                        }
+                      />
                       <div className="mt-2 space-y-1">
                         {(p.table ?? []).map((row, j) => (
                           <div key={j} className="flex gap-2">
@@ -526,6 +534,9 @@ export function EntriesSection({
                   ) : (
                     <li key={i}>
                       <div className="font-medium">{p.title}</div>
+                      {p.description && (
+                        <p className="mt-0.5 text-xs leading-relaxed text-muted">{p.description}</p>
+                      )}
                       {(p.table ?? []).length > 0 && (
                         <table className="mt-1 w-full max-w-md text-xs">
                           <tbody>
@@ -549,12 +560,6 @@ export function EntriesSection({
             value={c.crisis_data}
             editing={editing}
             onChange={(v) => set(["common_data", "crisis_data"], v)}
-          />
-          <Field
-            label="Reflection board support"
-            value={c.reflection_board_helping_data}
-            editing={editing}
-            onChange={(v) => set(["common_data", "reflection_board_helping_data"], v)}
           />
         </div>
       </Panel>
@@ -594,7 +599,18 @@ export function EntriesSection({
         </Panel>
       )}
 
-      {c.type_set && (
+      {c.reflection_spec && c.type_set && (
+        <Panel eyebrow="Unified engine" title="Parameters double as decision options">
+          <p className="text-sm leading-relaxed text-muted">
+            The four outcome parameters above are also the four options on every decision board
+            (one option per parameter). Whatever a participant allocates to an option counts
+            directly toward that parameter on their Reflection Board — no separate stance set,
+            no weights.
+          </p>
+        </Panel>
+      )}
+
+      {c.type_set && !c.reflection_spec && (
         <Panel
           eyebrow="Decision stances (hidden from participants)"
           title="Type-set (dynamic)"

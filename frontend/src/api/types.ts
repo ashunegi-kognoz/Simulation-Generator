@@ -20,6 +20,7 @@ export interface PriorityRow {
 }
 export interface BusinessPriority {
   title: string;
+  description?: string; // 20-30 words expanding the title; absent on older sims
   table: PriorityRow[];
 }
 export interface OutcomeParameter {
@@ -170,7 +171,7 @@ export interface Commitment {
   by_when: string;
 }
 
-// ---- scoring / debrief ----
+// ---- scoring / reflection ----
 export interface PostureFingerprint {
   overall: Record<string, number>;
   by_dimension: Record<Dimension, Record<string, number>>;
@@ -185,18 +186,26 @@ export interface PostureFingerprint {
   n_decisions: number;
 }
 
-export interface Debrief {
-  pattern_summary: string;
-  interpretation: string;
-  tension_navigated: string;
-  blind_spot: string;
-  transfer_prompt: string;
-  cited_decisions: number[];
+export interface ReflectionParameterScore {
+  units: number; // raw allocated units (source of truth)
+  score: number; // presented value (currently share of the round's units, 0..1)
 }
 
-export interface DebriefResponse {
-  fingerprint: PostureFingerprint;
-  debrief: Debrief;
+export interface ReflectionRound {
+  total_units: number;
+  parameters: Record<string, ReflectionParameterScore>;
+}
+
+export interface ReflectionBoardResponse {
+  session_id: string;
+  framework: {
+    framework_name: string;
+    framework_definition: string;
+    learning_tension: string;
+  } | null;
+  outcome_parameters: OutcomeParameter[];
+  rounds: Record<string, ReflectionRound>;
+  score_presentation: string;
 }
 
 export interface GroupAnalytics {
@@ -259,7 +268,7 @@ export interface SimContent {
     business_landscape: string;
     business_priorities: (string | BusinessPriority)[];
     crisis_data: string;
-    reflection_board_helping_data: string;
+    reflection_board_helping_data?: string; // retired; present on older sims
     posture_scheme?: PostureScheme;
     reflection_spec?: ReflectionSpec;
     type_set?: TypeSet;

@@ -108,9 +108,10 @@ def _iter_round_texts(sim: SimulationOutput) -> Iterator[str]:
     yield cd.business_landscape
     for pri in cd.business_priorities:
         yield pri.title
+        if pri.description:
+            yield pri.description
         for row in pri.table:
             yield f"{row.item}: {row.value}"
-    yield cd.reflection_board_helping_data
     for rnd in sim.sim_data.rounds.values():
         if rnd.participants:
             for pc in rnd.participants.values():

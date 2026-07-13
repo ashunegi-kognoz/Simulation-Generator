@@ -31,8 +31,7 @@ from app.pipeline.assemble import (
 from app.pipeline.common import common_content
 from app.pipeline.decision_focus import DecisionFocusSet, canonical_cycle, generate_decision_focuses
 from app.pipeline.reflection_spec import generate_reflection_spec
-from app.schemas.content import CommonData
-from app.pipeline.type_set import generate_type_set
+from app.schemas.content import CommonData, DynamicStance, TypeSet
 from app.pipeline.decisions import build_decisions
 from app.pipeline.normalize import CanonicalSpec, Checkpointer, InMemoryCheckpointer, ParticipantSpec, TeamSpec
 from app.pipeline.reduce import consistency_auditor, editorial_gate, safety_gate
@@ -159,11 +158,22 @@ async def generate_with_audit(
             )
             cp.save("reflection_spec", reflection_spec)
         common.reflection_spec = reflection_spec
+        # UNIFIED ENGINE: the four decision stances ARE the four outcome
+        # parameters. The type-set is constructed deterministically from the
+        # reflection spec (no LLM call), so a participant's allocation on an
+        # option maps 1:1 to an outcome parameter on the Reflection Board.
         if cp.has("type_set"):
             type_set = cp.load("type_set")
         else:
-            type_set = await generate_type_set(
-                spec.subject_matter, spec.business_context, llm, reflection_spec
+            type_set = TypeSet(
+                inferred_category=reflection_spec.framework_name,
+                learning_tension=reflection_spec.learning_tension,
+                stances=[
+                    DynamicStance(
+                        key=param.key, label=param.name, definition=param.definition
+                    )
+                    for param in reflection_spec.outcome_parameters
+                ]
             )
             cp.save("type_set", type_set)
         common.type_set = type_set

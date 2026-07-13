@@ -49,7 +49,7 @@ from app.schemas.runtime import (
     RenderedDecision,
     RenderedOption,
 )
-from app.schemas.scoring import Debrief, GroupAnalytics, PostureFingerprint
+from app.schemas.scoring import GroupAnalytics, PostureFingerprint
 
 __all__ = [
     # common
@@ -103,5 +103,4 @@ __all__ = [
     # scoring
     "PostureFingerprint",
     "GroupAnalytics",
-    "Debrief",
 ]
