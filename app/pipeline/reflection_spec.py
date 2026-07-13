@@ -18,14 +18,14 @@ from app.llm.call import parse_call
 from app.llm.provider import LLMProvider
 from pydantic import Field
 
-from app.schemas.content import ReflectionSpec
+from app.schemas.content import OutcomeParameter, ReflectionSpec
 
 
 class _ReflectionSpecStrict(ReflectionSpec):
     """Generation-time schema: the unified engine requires EXACTLY 4 outcome
     parameters (they double as the four option archetypes on every board)."""
 
-    outcome_parameters: list = Field(min_length=4, max_length=4)
+    outcome_parameters: list[OutcomeParameter] = Field(min_length=4, max_length=4)
 
 REFLECTION_SPEC_PROMPT = """\
 You design the TEACHING FRAME for an executive decision simulation, BEFORE any content is written.
