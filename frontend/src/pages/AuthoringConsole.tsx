@@ -275,7 +275,7 @@ export function AuthoringConsole({
                 <div className="sm:col-span-2">
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="eyebrow">KPI trade-offs (this role)</span>
-                    <button
+                    {/* <button
                       type="button"
                       className="text-xs font-medium text-grass hover:underline"
                       onClick={() =>
@@ -288,7 +288,7 @@ export function AuthoringConsole({
                       }
                     >
                       + Add
-                    </button>
+                    </button> */}
                   </div>
                   <div className="space-y-2">
                     {(role.kpi_tradeoffs ?? []).map((k, j) => (
