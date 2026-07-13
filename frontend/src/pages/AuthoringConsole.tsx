@@ -303,11 +303,11 @@ export function AuthoringConsole({
                             const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, target: v } : x));
                             patchRole(i, { kpi_tradeoffs: next });
                           }} />
-                        <Text label="Current (optional)" value={k.current ?? ""}
+                        {/* <Text label="Current (optional)" value={k.current ?? ""}
                           onChange={(v) => {
                             const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, current: v || null } : x));
                             patchRole(i, { kpi_tradeoffs: next });
-                          }} />
+                          }} /> */}
                         <Text label="Competing pressure" value={k.competing_pressure}
                           onChange={(v) => {
                             const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, competing_pressure: v } : x));
