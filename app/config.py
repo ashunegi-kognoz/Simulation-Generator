@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # --- Core ---
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/allocation_room"
     app_env: str = "local"
+    # Dev-only escape hatch: when true, requests may name their tenant via the
+    # X-Tenant-Id header WITHOUT a signed JWT. This bypasses authentication and
+    # must never be enabled in production. Defaults OFF; auto-allowed only in
+    # local/test below.
+    allow_header_tenant: bool = False
 
     # --- LLM ---
     llm_provider: Literal["mock", "openai", "claude"] = "mock"
@@ -59,6 +64,19 @@ class Settings(BaseSettings):
         if self.llm_provider == "claude":
             self.llm_model_strong = self.anthropic_model_strong
             self.llm_model_mid = self.anthropic_model_mid
+        return self
+
+    @model_validator(mode="after")
+    def _resolve_header_tenant(self) -> "Settings":
+        # Convenience: in local/test/dev, allow the X-Tenant-Id fallback so tooling
+        # (Postman, the test suite) works without minting JWTs. Outside dev it is
+        # force-disabled even if someone sets ALLOW_HEADER_TENANT=true, so the
+        # auth bypass can never reach production by misconfiguration.
+        dev_envs = {"local", "test", "dev", "development", "ci"}
+        if self.app_env.lower() in dev_envs:
+            self.allow_header_tenant = True
+        else:
+            self.allow_header_tenant = False
         return self
 
     @model_validator(mode="after")

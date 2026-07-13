@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import uuid
+
+from app.config import get_settings
 from collections.abc import AsyncIterator
 
 from fastapi import Header, HTTPException
@@ -43,7 +45,10 @@ async def tenant_id(
             return uuid.UUID(payload["tenant_id"])
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=401, detail="Session is missing a tenant.") from exc
-    if x_tenant_id:
+    # Dev-only fallback: trusting an unsigned header is an auth bypass, so it is
+    # honored ONLY when explicitly allowed (local/test). In production this branch
+    # is disabled and a missing/!invalid token is a hard 401.
+    if x_tenant_id and get_settings().allow_header_tenant:
         try:
             return uuid.UUID(x_tenant_id)
         except ValueError as exc:
