@@ -349,6 +349,10 @@ export function DetailsSettings({
                       <input className="input text-sm" value={r.scope} placeholder="Scope"
                         onChange={(e) => patchDraft((d) => { d.role_overview[i].scope = e.target.value; })} />
                     </div>
+                    <textarea className="input mt-2 min-h-[60px] w-full resize-y text-sm"
+                      placeholder="Role brief (optional) — responsibilities, mandate, stakeholders"
+                      value={r.context ?? ""}
+                      onChange={(e) => patchDraft((d) => { d.role_overview[i].context = e.target.value; })} />
                     {(r.kpi_tradeoffs ?? []).map((k, j) => (
                       <div key={j} className="mt-2 grid gap-2 sm:grid-cols-4">
                         <input className="input text-xs" value={k.metric} placeholder="KPI metric"

@@ -273,6 +273,15 @@ export function AuthoringConsole({
                 <Text label="Reporting line" value={role.reporting_line} onChange={(v) => patchRole(i, { reporting_line: v })} />
                 <Text label="Scope" value={role.scope} onChange={(v) => patchRole(i, { scope: v })} />
                 <div className="sm:col-span-2">
+                  <label className="label">Role brief (optional)</label>
+                  <textarea
+                    className="input min-h-[72px] w-full resize-y"
+                    placeholder="A fuller brief for this role — responsibilities, mandate, reporting reality, tensions, named stakeholders. Paste from a role document if you have one. This enriches how the role's situation and decisions are written."
+                    value={role.context ?? ""}
+                    onChange={(e) => patchRole(i, { context: e.target.value })}
+                  />
+                </div>
+                <div className="sm:col-span-2">
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="eyebrow">KPI trade-offs (this role)</span>
                     <button
@@ -303,11 +312,11 @@ export function AuthoringConsole({
                             const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, target: v } : x));
                             patchRole(i, { kpi_tradeoffs: next });
                           }} />
-                        {/* <Text label="Current (optional)" value={k.current ?? ""}
+                        <Text label="Current (optional)" value={k.current ?? ""}
                           onChange={(v) => {
                             const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, current: v || null } : x));
                             patchRole(i, { kpi_tradeoffs: next });
-                          }} /> */}
+                          }} />
                         <Text label="Competing pressure" value={k.competing_pressure}
                           onChange={(v) => {
                             const next = (role.kpi_tradeoffs ?? []).map((x, idx) => (idx === j ? { ...x, competing_pressure: v } : x));
