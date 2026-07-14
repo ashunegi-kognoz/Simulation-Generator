@@ -99,21 +99,60 @@ async def build_reflection(
         for key, units in (row.units_jsonb or {}).items():
             units_by_round[row.round_index][key] += int(units)
 
+    # name lookup so the participant-facing summary uses edited display names,
+    # never raw snake_case keys.
+    name_by_key = {p.get("key"): p.get("name", p.get("key")) for p in parameters}
+
     rounds_payload: dict[str, dict] = {}
     for round_index in sorted(units_by_round):
         totals = units_by_round[round_index]
         round_total = sum(totals.values())
+        param_cells = {
+            key: {
+                "units": totals.get(key, 0),
+                "score": present_score(totals.get(key, 0), round_total),
+            }
+            for key in param_keys
+            if key is not None
+        }
+        # Plain-English "where you leaned" line, computed from the scores (no AI).
+        # Kept as its OWN field so the frontend can show or hide it independently.
+        lean_summary = ""
+        if param_cells and round_total > 0:
+            ranked = sorted(param_cells.items(), key=lambda kv: kv[1]["units"], reverse=True)
+            top_key = ranked[0][0]
+            low_key = ranked[-1][0]
+            top_pct = round(param_cells[top_key]["score"] * 100)
+            low_pct = round(param_cells[low_key]["score"] * 100)
+            if top_key != low_key:
+                lean_summary = (
+                    f"This round you leaned most on {name_by_key.get(top_key, top_key)} "
+                    f"({top_pct}%) and least on {name_by_key.get(low_key, low_key)} ({low_pct}%)."
+                )
+            else:
+                lean_summary = (
+                    f"This round you spread your units evenly across all four approaches."
+                )
         rounds_payload[str(round_index)] = {
             "total_units": round_total,
-            "parameters": {
-                key: {
-                    "units": totals.get(key, 0),
-                    "score": present_score(totals.get(key, 0), round_total),
-                }
-                for key in param_keys
-                if key is not None
-            },
+            "parameters": param_cells,
+            "lean_summary": lean_summary,
         }
+
+    # Board-facing content per approach, kept as SEPARATE fields from the raw
+    # spec so the frontend can show or hide each piece independently:
+    #   name              -> edited display name
+    #   short_description -> the plain "leaning toward this means ..." line
+    #   what_good_looks_like -> strong-performer line (frontend may hide)
+    board_parameters = [
+        {
+            "key": p.get("key"),
+            "name": p.get("name", p.get("key")),
+            "short_description": p.get("definition", ""),
+            "what_good_looks_like": p.get("what_good_looks_like", ""),
+        }
+        for p in parameters
+    ]
 
     return {
         "session_id": str(session_id),
@@ -127,6 +166,7 @@ async def build_reflection(
             else None
         ),
         "outcome_parameters": parameters,
+        "board_parameters": board_parameters,
         # Round-wise scores: raw units (source of truth) + presented score per
         # parameter. score_presentation names the active present_score() rule so
         # clients know how to label the number.

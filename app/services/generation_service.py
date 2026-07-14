@@ -422,7 +422,21 @@ async def update_content(
         raise NotFoundError("no generated content to edit")
 
     # Validate: rejects structural corruption (e.g. a decision missing a posture).
-    validated = SimData.model_validate(sim_data_in)
+    # v2 sims declare their own four posture keys (the outcome-parameter keys), so
+    # the option-posture validator needs them as context; without it, it falls back
+    # to the canonical Protect/Enable/Hybrid/Defer set and would wrongly reject
+    # perfectly valid dynamic keys.
+    allowed_postures = None
+    _rs = (sim_data_in.get("common_data") or {}).get("reflection_spec") or {}
+    _params = _rs.get("outcome_parameters") or []
+    if _params:
+        allowed_postures = [p.get("key") for p in _params if p.get("key")]
+    else:
+        _ts = (sim_data_in.get("common_data") or {}).get("type_set") or {}
+        if _ts.get("stances"):
+            allowed_postures = [st.get("key") for st in _ts["stances"] if st.get("key")]
+    ctx = {"allowed_postures": allowed_postures} if allowed_postures else None
+    validated = SimData.model_validate(sim_data_in, context=ctx)
     # A team's shared situation is the single source of truth: when present, sync
     # it into every member copy so an admin edit can never leave members stale.
     for rnd in validated.rounds.values():
@@ -430,6 +444,24 @@ async def update_content(
             if tc.situation_data:
                 for member in tc.members.values():
                     member.situation_data = tc.situation_data
+    # UNIFIED ENGINE COUPLING: the four outcome parameters ARE the four decision
+    # stances (same keys). When an admin edits a parameter's display text, mirror
+    # that text onto the type-set stance with the SAME key so the decision board's
+    # option KIND labels/definitions stay consistent with the reflection spec.
+    # The key is the stable join; option-level bespoke label/content is untouched,
+    # and stored allocations (keyed by that same key) remain valid.
+    common = validated.common_data
+    if common.reflection_spec and common.type_set:
+        by_key = {p.key: p for p in common.reflection_spec.outcome_parameters}
+        for stance in common.type_set.stances:
+            param = by_key.get(stance.key)
+            if param is not None:
+                stance.label = param.name
+                stance.definition = param.definition
+        # keep the type-set's framing text aligned with the (possibly edited) spec
+        common.type_set.inferred_category = common.reflection_spec.framework_name
+        common.type_set.learning_tension = common.reflection_spec.learning_tension
+
     data = validated.model_dump(mode="json")
     version.sim_data_jsonb = data
 

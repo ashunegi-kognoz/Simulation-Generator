@@ -569,30 +569,109 @@ export function EntriesSection({
           <div className="mb-3 grid gap-3 sm:grid-cols-2">
             <div>
               <div className="eyebrow mb-1">Framework</div>
-              <div className="text-sm font-medium">{c.reflection_spec.framework_name}</div>
-              <div className="mt-0.5 text-sm text-muted">
-                {c.reflection_spec.framework_definition}
-              </div>
+              {editing ? (
+                <>
+                  <input
+                    className="input text-sm font-medium"
+                    value={c.reflection_spec.framework_name}
+                    onChange={(e) =>
+                      set(["common_data", "reflection_spec", "framework_name"], e.target.value)
+                    }
+                  />
+                  <textarea
+                    className="input mt-1.5 min-h-[56px] w-full resize-y text-sm"
+                    value={c.reflection_spec.framework_definition}
+                    onChange={(e) =>
+                      set(["common_data", "reflection_spec", "framework_definition"], e.target.value)
+                    }
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="text-sm font-medium">{c.reflection_spec.framework_name}</div>
+                  <div className="mt-0.5 text-sm text-muted">
+                    {c.reflection_spec.framework_definition}
+                  </div>
+                </>
+              )}
             </div>
             <div>
               <div className="eyebrow mb-1">Learning tension</div>
-              <div className="text-sm">{c.reflection_spec.learning_tension}</div>
+              {editing ? (
+                <textarea
+                  className="input min-h-[56px] w-full resize-y text-sm"
+                  value={c.reflection_spec.learning_tension}
+                  onChange={(e) =>
+                    set(["common_data", "reflection_spec", "learning_tension"], e.target.value)
+                  }
+                />
+              ) : (
+                <div className="text-sm">{c.reflection_spec.learning_tension}</div>
+              )}
             </div>
           </div>
           <div className="eyebrow mb-1.5">Outcome parameters</div>
+          {editing && (
+            <p className="mb-2 text-xs text-muted">
+              These four are also the four options on every decision. Editing a name or description
+              updates it everywhere it is shown; the identifier stays fixed so scoring is unaffected.
+            </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
-            {c.reflection_spec.outcome_parameters.map((op) => (
+            {c.reflection_spec.outcome_parameters.map((op, oi) => (
               <div key={op.key} className="rounded-xl border border-line p-3">
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="rounded-full bg-petrol-soft px-2 py-0.5 text-[11px] font-semibold text-petrol">
-                    {op.name}
-                  </span>
-                  <span className="num text-[11px] text-faint">{op.key}</span>
-                </div>
-                <div className="text-sm text-muted">{op.definition}</div>
-                <div className="mt-1 text-xs text-faint">
-                  Strong performer: {op.what_good_looks_like}
-                </div>
+                {editing ? (
+                  <>
+                    <div className="mb-1 flex items-center gap-2">
+                      <input
+                        className="input text-[12px] font-semibold"
+                        value={op.name}
+                        onChange={(e) =>
+                          set(
+                            ["common_data", "reflection_spec", "outcome_parameters", oi, "name"],
+                            e.target.value,
+                          )
+                        }
+                      />
+                      <span className="num text-[11px] text-faint">{op.key}</span>
+                    </div>
+                    <textarea
+                      className="input min-h-[52px] w-full resize-y text-sm"
+                      placeholder="What leaning toward this means (short, plain English)"
+                      value={op.definition}
+                      onChange={(e) =>
+                        set(
+                          ["common_data", "reflection_spec", "outcome_parameters", oi, "definition"],
+                          e.target.value,
+                        )
+                      }
+                    />
+                    <textarea
+                      className="input mt-1 min-h-[44px] w-full resize-y text-xs"
+                      placeholder="Strong performer looks like…"
+                      value={op.what_good_looks_like}
+                      onChange={(e) =>
+                        set(
+                          ["common_data", "reflection_spec", "outcome_parameters", oi, "what_good_looks_like"],
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="rounded-full bg-petrol-soft px-2 py-0.5 text-[11px] font-semibold text-petrol">
+                        {op.name}
+                      </span>
+                      <span className="num text-[11px] text-faint">{op.key}</span>
+                    </div>
+                    <div className="text-sm text-muted">{op.definition}</div>
+                    <div className="mt-1 text-xs text-faint">
+                      Strong performer: {op.what_good_looks_like}
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>

@@ -28,45 +28,95 @@ class _ReflectionSpecStrict(ReflectionSpec):
     outcome_parameters: list[OutcomeParameter] = Field(min_length=4, max_length=4)
 
 REFLECTION_SPEC_PROMPT = """\
-You design the TEACHING FRAME for an executive decision simulation, BEFORE any content is written.
-Working backward from what leaders in this situation must learn, produce a JSON reflection spec:
+You design the TEACHING FRAME for an executive decision simulation, BEFORE any scenario content or decisions are written.
 
-- framework_name: the reflection framework -- the managerial lens the simulation teaches
-  (2-4 words, in the vocabulary of this domain).
-- framework_definition: one sentence: what this framework means inside THIS simulation.
-- learning_tension: ONE sentence naming the core strategic trade-off a leader here must navigate
-  -- the thing the whole simulation exists to teach.
-- outcome_parameters: EXACTLY 4 outcome parameters. These have a DUAL ROLE, so write them
-  carefully:
-  (a) they are the outcome dimensions the participant is reflected against at the end, AND
-  (b) each one is also a LEADERSHIP APPROACH -- every decision in the simulation will offer four
-      options, one embodying each parameter, and the participant allocates 100 units across them.
-  Each parameter must therefore read as a direction a leader can lean toward (e.g. "Cost
-  Visibility", "Margin Recovery", "Commercial Discipline"), NEVER as a bare metric (not
-  "Operating Margin %") and NEVER as something no single option could embody.
-  For each:
-    * key: short lowercase snake_case slug, unique among the four (e.g. "cost_visibility").
-    * name: concise participant-facing name (2-4 words).
-    * definition: one sentence: what leaning toward this looks like in THIS simulation, and what
-      it measures.
-    * what_good_looks_like: one sentence describing the observable decision behavior of a strong
-      performer on this parameter.
+Your job is to identify the four distinct managerial capabilities the simulation is designed to teach.
 
-Calibration examples (programme topic -> framework -> example parameters):
-- Cost drivers, cost visibility, cost control -> Cost Management -> Cost Visibility, Margin
-  Recovery, Commercial Discipline, Cash and Execution Control
-- Capacity creation dilemma -> Capacity Planning -> Capacity Commitment, Demand Protection,
-  Financial Discipline, Execution Reliability
-These show the MAPPING STYLE, not a menu: derive the framework and parameters from the subject
-matter and business context you are given.
+Work backwards, in this order of priority:
+1. the programme's learning intent, as expressed in the SUBJECT MATTER you are given (treat this as the learning objectives)
+2. the core strategic tension implied by that intent
+3. the BUSINESS CONTEXT you are given (used to ground and phrase the parameters, not to originate them)
 
-Rules:
-- Exactly 4 parameters; genuinely distinct directions that together span the learning_tension.
-- The four must be in real tension with each other: a leader cannot fully serve all four at once,
-  which is what makes the 100-unit allocation meaningful.
-- Every parameter must be expressible as a concrete option on a business decision.
-- Plain, concrete business language. No jargon, no filler.
-- Return JSON only, no commentary.
+to produce a Reflection Framework that becomes the foundation for decision option design, decision tagging, participant reflection, and capability assessment.
+
+----------------------------------------
+OUTPUT (return JSON with EXACTLY these keys)
+----------------------------------------
+- framework_name: a concise managerial framework (2-4 words) describing what leaders are fundamentally learning.
+- framework_definition: ONE short sentence (<= 20 words), plain everyday English, explaining what this framework means inside THIS simulation. A participant playing alone must understand it at a glance.
+- learning_tension: ONE short sentence (<= 25 words), plain everyday English, naming the central trade-off the participant must keep balancing -- it should explain WHY this simulation exists.
+- outcome_parameters: EXACTLY FOUR (see below).
+
+----------------------------------------
+OUTCOME PARAMETERS
+----------------------------------------
+Generate EXACTLY FOUR outcome parameters. These are NOT KPIs or metrics. Each is a distinct
+leadership approach (a managerial capability), and each has TWO roles that you must hold together:
+  1. Reflection dimension -- at the end, the participant is evaluated against this capability.
+  2. Decision lens -- every decision will contain exactly one option that primarily represents it.
+So each parameter must be something a leader can intentionally LEAN TOWARD while deciding, AND
+something a participant can be scored on afterward.
+
+----------------------------------------
+DESIGN RULES
+----------------------------------------
+1. Learning-first. Parameters must emerge from the learning intent (subject matter) first, then be
+   grounded in the business context -- never generic management ideas bolted on.
+
+2. MECE.
+   - Mutually Exclusive: each represents a unique capability. Two parameters OVERLAP if a single
+     decision option would reasonably satisfy both, if they would be scored by the same behaviour,
+     or if one is a synonym/re-wording of the other (e.g. "Cost Control" vs "Cost Discipline",
+     "Customer Focus" vs "Client Prioritisation"). If any pair overlaps, merge them and introduce a
+     genuinely different fourth capability.
+   - Collectively Exhaustive: together the four should account for every major decision the
+     participant will make; no major decision category should fall outside all four.
+
+3. Distinct decision spaces. Each parameter should naturally OWN a different category of decisions
+   (e.g. understanding costs / commercial choices / operational execution / customer prioritisation).
+   Four parameters that compete for the same decisions is a failure.
+
+4. Capability, not metric. Bad: Profit, Revenue, Margin %. Good: Commercial Margin Discipline,
+   Cost-to-Serve Visibility, Service Reliability Protection.
+
+5. Real trade-offs. Improving one should often require compromising another, so that allocating
+   100 units across the four decision options is a meaningful choice.
+
+6. Reflection quality. Each parameter must be able to generate rich, personalised feedback -- avoid
+   vague concepts that cannot explain WHY a participant succeeded or failed.
+
+7. Coherent framework. The four must together form ONE coherent teaching framework that resolves the
+   learning_tension -- not four good-sounding but unrelated ideas.
+
+----------------------------------------
+SELF-VALIDATION (do this silently before returning)
+----------------------------------------
+Verify ALL of the following; if any fails, REDESIGN before returning:
+- Exactly four parameters.
+- Each parameter traces to the learning intent, not to generic management theory.
+- No two parameters describe the same capability, are scored by the same behaviour, or are synonyms.
+- Every major decision category the simulation implies has ONE natural primary parameter.
+- Every parameter could realistically appear as a concrete option on a business decision.
+- The four together completely represent the simulation's teaching objective and resolve the tension.
+
+----------------------------------------
+Each outcome_parameter object must contain EXACTLY:
+- key: short lowercase snake_case identifier, unique among the four.
+- name: 2-4 word participant-facing title (no synonyms of another parameter's name).
+- definition: ONE short sentence (<= 20 words), plain everyday English, finishing the idea "Leaning
+  toward this means ..." -- what choosing this approach actually looks like in THIS simulation. No
+  jargon; a participant playing alone must get it immediately.
+- what_good_looks_like: ONE short sentence (<= 20 words) describing the observable behaviour of a
+  strong performer on this approach.
+
+WRITING STYLE (applies to every text field):
+- Short, plain, everyday business English. Prefer common words over jargon.
+- Definitions and the tension are read by participants ALONE, with no facilitator, so they must be
+  self-explanatory at a glance. Keep within the word limits above; shorter is better if it stays clear.
+- Do not sacrifice accuracy or distinctiveness for brevity -- keep the four approaches genuinely
+  different and true to the business context.
+
+Return JSON only. No commentary.
 """
 
 
