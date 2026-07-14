@@ -350,7 +350,7 @@ export function DetailsSettings({
                         onChange={(e) => patchDraft((d) => { d.role_overview[i].scope = e.target.value; })} />
                     </div>
                     <textarea className="input mt-2 min-h-[60px] w-full resize-y text-sm"
-                      placeholder="Role brief (optional) — responsibilities, mandate, stakeholders"
+                      placeholder="Role brief — responsibilities, mandate, stakeholders"
                       value={r.context ?? ""}
                       onChange={(e) => patchDraft((d) => { d.role_overview[i].context = e.target.value; })} />
                     {(r.kpi_tradeoffs ?? []).map((k, j) => (
