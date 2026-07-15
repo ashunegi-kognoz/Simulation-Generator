@@ -17,7 +17,7 @@ from app.pipeline.assemble import (
     TeamBuildResult,
 )
 from app.pipeline.decision_focus import DecisionFocusSet
-from app.schemas.content import BalanceReport, CommonData, Decision, NarrativeBible, ReflectionSpec, TypeSet
+from app.schemas.content import ArchetypeSet, BalanceReport, CommonData, Decision, NarrativeBible, ReflectionSpec, TypeSet
 
 _PYDANTIC = {
     "NarrativeBible": NarrativeBible,
@@ -25,6 +25,7 @@ _PYDANTIC = {
     "TypeSet": TypeSet,
     "ReflectionSpec": ReflectionSpec,
     "DecisionFocusSet": DecisionFocusSet,
+    "ArchetypeSet": ArchetypeSet,
 }
 
 
@@ -53,7 +54,7 @@ def _dec_reports(raw: list[dict]) -> list[BalanceReport]:
 
 
 def encode(value: Any) -> dict[str, Any]:
-    if isinstance(value, NarrativeBible | CommonData | TypeSet | ReflectionSpec | DecisionFocusSet):
+    if isinstance(value, NarrativeBible | CommonData | TypeSet | ReflectionSpec | DecisionFocusSet | ArchetypeSet):
         return {"t": value.__class__.__name__, "data": value.model_dump()}
     if isinstance(value, ParticipantBuildResult):
         return {

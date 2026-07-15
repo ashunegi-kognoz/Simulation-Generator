@@ -18,6 +18,11 @@ export interface PriorityRow {
   item: string;
   value: string;
 }
+export interface LandscapeEntry {
+  title: string;
+  body: string;
+}
+
 export interface BusinessPriority {
   title: string;
   description?: string; // 20-30 words expanding the title; absent on older sims
@@ -27,7 +32,7 @@ export interface OutcomeParameter {
   key: string;
   name: string;
   definition: string;
-  what_good_looks_like: string;
+  what_good_looks_like?: string; // retired
 }
 export interface ReflectionSpec {
   framework_name: string;
@@ -196,6 +201,12 @@ export interface ReflectionRound {
   parameters: Record<string, ReflectionParameterScore>;
 }
 
+export interface BusinessArchetype {
+  keys: string[]; // 1 (single) or 2 (pair) outcome-parameter keys
+  name: string;
+  description: string;
+}
+
 export interface ReflectionBoardResponse {
   session_id: string;
   framework: {
@@ -205,6 +216,8 @@ export interface ReflectionBoardResponse {
   } | null;
   outcome_parameters: OutcomeParameter[];
   rounds: Record<string, ReflectionRound>;
+  dominant_pattern: { keys: string[]; names: string[] } | null;
+  archetype: { name: string; description: string } | null;
   score_presentation: string;
 }
 
@@ -265,8 +278,10 @@ export interface SimContentRound {
 export interface SimContent {
   common_data: {
     allocation_room_data: string;
-    business_landscape: string;
+    business_landscape: LandscapeEntry[] | string; // string on older sims
+
     business_priorities: (string | BusinessPriority)[];
+    business_archetypes?: BusinessArchetype[]; // absent on older sims
     crisis_data: string;
     reflection_board_helping_data?: string; // retired; present on older sims
     posture_scheme?: PostureScheme;

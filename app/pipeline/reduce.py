@@ -105,7 +105,10 @@ def option_word_parity_ok(decision: Decision) -> bool:
 def _iter_round_texts(sim: SimulationOutput) -> Iterator[str]:
     cd = sim.sim_data.common_data
     yield cd.allocation_room_data
-    yield cd.business_landscape
+    for _entry in cd.business_landscape:
+        if _entry.title:
+            yield _entry.title
+        yield _entry.body
     for pri in cd.business_priorities:
         yield pri.title
         if pri.description:

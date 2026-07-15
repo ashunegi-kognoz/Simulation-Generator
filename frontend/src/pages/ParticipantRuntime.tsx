@@ -191,18 +191,13 @@ export function ParticipantRuntime({
             </Panel>
           ))}
 
-          {board.outcome_parameters.some((p) => p.what_good_looks_like) && (
-            <Panel eyebrow="Read your pattern" title="What strong performance looks like">
-              <div className="space-y-3 text-sm leading-relaxed">
-                {board.outcome_parameters.map((p) =>
-                  p.what_good_looks_like ? (
-                    <div key={p.key}>
-                      <div className="eyebrow mb-0.5">{p.name}</div>
-                      <p className="text-muted">{p.what_good_looks_like}</p>
-                    </div>
-                  ) : null,
-                )}
-              </div>
+          {board.archetype && board.dominant_pattern && (
+            <Panel eyebrow="Your leadership pattern" title={board.archetype.name}>
+              <p className="mb-2 text-xs text-muted">
+                Based on where you placed most of your units:{" "}
+                {board.dominant_pattern.names.join(" + ")}
+              </p>
+              <p className="text-sm leading-relaxed text-ink">{board.archetype.description}</p>
             </Panel>
           )}
         </>

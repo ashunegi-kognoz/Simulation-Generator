@@ -29,6 +29,7 @@ from app.pipeline.assemble import (
     shuffle_positions,
 )
 from app.pipeline.common import common_content
+from app.pipeline.archetypes import generate_archetypes
 from app.pipeline.decision_focus import DecisionFocusSet, canonical_cycle, generate_decision_focuses
 from app.pipeline.reflection_spec import generate_reflection_spec
 from app.schemas.content import CommonData, DynamicStance, TypeSet
@@ -88,7 +89,10 @@ def _shared_context(common: CommonData) -> str:
     teaching frame -- without each call re-deriving them.
     """
     parts: list[str] = ["=== FROZEN SHARED CONTEXT (AUTHORITATIVE; DO NOT CONTRADICT) ==="]
-    parts.append(f"BUSINESS LANDSCAPE:\n{common.business_landscape}")
+    _landscape_text = "\n".join(
+        (f"{e.title}: {e.body}" if e.title else e.body) for e in common.business_landscape
+    )
+    parts.append(f"BUSINESS LANDSCAPE:\n{_landscape_text}")
     pri_lines = []
     for p in common.business_priorities:
         row_txt = "; ".join(f"{r.item}={r.value}" for r in p.table)
@@ -179,6 +183,17 @@ async def generate_with_audit(
         common.type_set = type_set
         posture_keys = [s.key for s in type_set.stances]
         stances = list(type_set.stances)
+
+        # Business archetypes: 10 leadership patterns over the four parameters,
+        # generated NOW (checkpointed) so the Reflection Board is instant later.
+        if cp.has("archetypes"):
+            archetype_set = cp.load("archetypes")
+        else:
+            archetype_set = await generate_archetypes(
+                spec.subject_matter, spec.business_context, reflection_spec, llm
+            )
+            cp.save("archetypes", archetype_set)
+        common.business_archetypes = archetype_set.archetypes
 
     # --- Tier 2: Fan-out ---
     async def build_participant(p: ParticipantSpec) -> ParticipantBuildResult:

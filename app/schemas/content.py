@@ -115,7 +115,9 @@ class OutcomeParameter(BaseModel):
     key: str  # stable lowercase slug, e.g. "cost_efficiency"
     name: str  # participant-facing name, e.g. "Cost Efficiency"
     definition: str  # what this parameter measures in THIS simulation
-    what_good_looks_like: str  # observable behavior of a strong performer
+    # Retired (no longer generated -- archetypes replaced it on the participant
+    # board); optional so pre-retirement sims keep validating.
+    what_good_looks_like: str = ""
 
 
 class ReflectionSpec(BaseModel):
@@ -159,10 +161,60 @@ class BusinessPriority(BaseModel):
     table: list[PriorityRow] = Field(default_factory=list, max_length=5)
 
 
+class BusinessArchetype(BaseModel):
+    """One leadership archetype for a dominant allocation pattern.
+
+    `keys` is the pattern it covers: two parameter keys (the participant's top-2
+    allocation) or one key (everything on a single parameter). With four
+    parameters there are exactly 10 patterns: 6 unordered pairs + 4 singles.
+    Shown to the participant as their pattern name + a short plain-English para.
+    """
+
+    keys: list[str] = Field(min_length=1, max_length=2)
+    name: str  # 2-4 words, participant-facing
+    description: str  # ~35-55 words, simple everyday English, second person
+
+
+class ArchetypeSet(BaseModel):
+    """Parse/checkpoint wrapper: exactly the 10 archetypes for 4 parameters."""
+
+    archetypes: list[BusinessArchetype] = Field(min_length=10, max_length=10)
+
+
+class LandscapeEntry(BaseModel):
+    """One titled slice of the business landscape: a short header plus a tight
+    paragraph. Displayed as a titled card (numbered client-side)."""
+
+    title: str  # <= 5 words, names the theme (e.g. "The market", "Cost structure")
+    body: str   # 30-40 words on that one theme
+
+
 class CommonData(BaseModel):
     allocation_room_data: str
-    business_landscape: str
+    business_landscape: list[LandscapeEntry] = Field(min_length=1, max_length=6)
     business_priorities: list[BusinessPriority] = Field(min_length=5, max_length=5)
+    # 10 leadership archetypes (6 pairs + 4 singles over the outcome parameters);
+    # empty on sims generated before the feature.
+    business_archetypes: list[BusinessArchetype] = Field(default_factory=list)
+
+    @field_validator("business_landscape", mode="before")
+    @classmethod
+    def _coerce_landscape(cls, v):
+        # Backward compat: older sims stored the landscape as one big string (paragraphs
+        # separated by blank lines). Wrap each paragraph into an untitled entry so old
+        # content keeps validating and still renders.
+        if isinstance(v, str):
+            paras = [p.strip() for p in v.split("\n\n") if p.strip()]
+            return [{"title": "", "body": p} for p in paras] or [{"title": "", "body": v}]
+        if isinstance(v, list):
+            out = []
+            for item in v:
+                if isinstance(item, str):
+                    out.append({"title": "", "body": item})
+                else:
+                    out.append(item)
+            return out
+        return v
 
     @field_validator("business_priorities", mode="before")
     @classmethod

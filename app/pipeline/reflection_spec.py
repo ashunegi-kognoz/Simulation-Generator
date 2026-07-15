@@ -100,14 +100,13 @@ Verify ALL of the following; if any fails, REDESIGN before returning:
 - The four together completely represent the simulation's teaching objective and resolve the tension.
 
 ----------------------------------------
-Each outcome_parameter object must contain EXACTLY:
+Each outcome_parameter object must contain EXACTLY (and nothing else):
 - key: short lowercase snake_case identifier, unique among the four.
 - name: 2-4 word participant-facing title (no synonyms of another parameter's name).
 - definition: ONE short sentence (<= 20 words), plain everyday English, finishing the idea "Leaning
   toward this means ..." -- what choosing this approach actually looks like in THIS simulation. No
   jargon; a participant playing alone must get it immediately.
-- what_good_looks_like: ONE short sentence (<= 20 words) describing the observable behaviour of a
-  strong performer on this approach.
+
 
 WRITING STYLE (applies to every text field):
 - Short, plain, everyday business English. Prefer common words over jargon.

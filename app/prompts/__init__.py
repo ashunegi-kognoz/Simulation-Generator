@@ -10,7 +10,7 @@ from __future__ import annotations
 # --- versions ---
 FORGE_PROMPT_V = "forge.v5"
 WORLD_PROMPT_V = "world.v4"
-COMMON_PROMPT_V = "common.v8"
+COMMON_PROMPT_V = "common.v9"
 ROLE_PROMPT_V = "role.v7"
 TEAM_PROMPT_V = "team.v5"
 BALANCE_PROMPT_V = "balance.v3"
@@ -312,8 +312,11 @@ REQUIREMENTS BY FIELD
   belong in business_landscape and crisis_data. Tone: inviting and composed, never cheerleading.
 - business_landscape: enterprise reality using observable facts, operating constraints, deadlines,
   stakeholder expectations, financial context, and operational pressures. Avoid strategic
-  interpretation. STRUCTURE: at most 6 short paragraphs of 30-40 words each, separated by blank
-  lines; each paragraph covers one theme. Total must stay compact.
+  interpretation. STRUCTURE: a list of AT MOST 6 entries. Each entry is an object with:
+    * title: a short header naming that theme, <= 5 words, plain (e.g. "The market",
+      "Cost structure", "Service pressure"). No numbering -- the UI numbers them.
+    * body: 30-40 words on that one theme only.
+  Each entry covers a distinct theme; do not repeat a theme. Total must stay compact.
 - business_priorities: exactly five shared priorities, distinct and decision-relevant. Each is an
   object with: title (one crisp priority statement, <= 15 words), description (20-30 words
   expanding why this priority matters now and what is at stake), and table (4-5 rows of

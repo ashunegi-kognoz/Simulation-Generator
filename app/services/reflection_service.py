@@ -149,10 +149,48 @@ async def build_reflection(
             "key": p.get("key"),
             "name": p.get("name", p.get("key")),
             "short_description": p.get("definition", ""),
-            "what_good_looks_like": p.get("what_good_looks_like", ""),
         }
         for p in parameters
     ]
+
+    # DOMINANT PATTERN -- global across all this session's rounds (the parameters
+    # are the same in every round, so the pattern is one identity, not per round).
+    # Rules: 100% of all units on one parameter -> single-key pattern; otherwise
+    # the top-2 by total units. Ties (including a perfectly even spread) break
+    # deterministically by the parameters' order in the spec, so the same
+    # allocation always yields the same archetype on every refresh.
+    grand_totals: dict[str, int] = {k: 0 for k in param_keys if k is not None}
+    for totals in units_by_round.values():
+        for k, u in totals.items():
+            if k in grand_totals:
+                grand_totals[k] += u
+    grand_sum = sum(grand_totals.values())
+    order = {k: i for i, k in enumerate(grand_totals)}
+    dominant_keys: list[str] = []
+    if grand_sum > 0:
+        maxed = [k for k, u in grand_totals.items() if u == grand_sum]
+        if maxed:
+            dominant_keys = [maxed[0]]
+        else:
+            ranked = sorted(grand_totals.items(), key=lambda kv: (-kv[1], order[kv[0]]))
+            dominant_keys = [ranked[0][0], ranked[1][0]]
+
+    archetype = None
+    if dominant_keys:
+        want = frozenset(dominant_keys)
+        for a in common.get("business_archetypes") or []:
+            if frozenset(a.get("keys") or []) == want:
+                archetype = {"name": a.get("name", ""), "description": a.get("description", "")}
+                break
+
+    dominant_pattern = (
+        {
+            "keys": dominant_keys,
+            "names": [name_by_key.get(k, k) for k in dominant_keys],
+        }
+        if dominant_keys
+        else None
+    )
 
     return {
         "session_id": str(session_id),
@@ -171,5 +209,7 @@ async def build_reflection(
         # parameter. score_presentation names the active present_score() rule so
         # clients know how to label the number.
         "rounds": rounds_payload,
+        "dominant_pattern": dominant_pattern,
+        "archetype": archetype,
         "score_presentation": "share_of_round_units",
     }

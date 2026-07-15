@@ -461,12 +461,55 @@ export function EntriesSection({
             editing={editing}
             onChange={(v) => set(["common_data", "allocation_room_data"], v)}
           />
-          <Field
-            label="Business landscape"
-            value={c.business_landscape}
-            editing={editing}
-            onChange={(v) => set(["common_data", "business_landscape"], v)}
-          />
+          <div>
+            <div className="eyebrow mb-1">Business landscape</div>
+            {(() => {
+              // Normalize: older sims may still hold a single string.
+              const entries = Array.isArray(c.business_landscape)
+                ? c.business_landscape
+                : [{ title: "", body: String(c.business_landscape ?? "") }];
+              return editing ? (
+                <div className="space-y-2">
+                  {entries.map((e, i) => (
+                    <div key={i} className="rounded-lg border border-line p-2">
+                      <input
+                        className="input text-sm font-medium"
+                        placeholder="Title (e.g. The market)"
+                        value={e.title}
+                        onChange={(ev) =>
+                          set(["common_data", "business_landscape", i, "title"], ev.target.value)
+                        }
+                      />
+                      <textarea
+                        className="input mt-1 min-h-[60px] w-full resize-y text-sm"
+                        placeholder="30–40 words on this one theme"
+                        value={e.body}
+                        onChange={(ev) =>
+                          set(["common_data", "business_landscape", i, "body"], ev.target.value)
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {entries.map((e, i) => (
+                    <div key={i}>
+                      {e.title && (
+                        <div className="flex items-baseline justify-between">
+                          <div className="text-sm font-medium text-ink">{e.title}</div>
+                          <span className="num text-[11px] text-faint">
+                            {String(i + 1).padStart(2, "0")} / {String(entries.length).padStart(2, "0")}
+                          </span>
+                        </div>
+                      )}
+                      <p className="mt-0.5 text-sm leading-relaxed text-muted">{e.body}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
           <div>
             <div className="eyebrow mb-1">Business priorities</div>
             {editing ? (
@@ -646,17 +689,7 @@ export function EntriesSection({
                         )
                       }
                     />
-                    <textarea
-                      className="input mt-1 min-h-[44px] w-full resize-y text-xs"
-                      placeholder="Strong performer looks like…"
-                      value={op.what_good_looks_like}
-                      onChange={(e) =>
-                        set(
-                          ["common_data", "reflection_spec", "outcome_parameters", oi, "what_good_looks_like"],
-                          e.target.value,
-                        )
-                      }
-                    />
+
                   </>
                 ) : (
                   <>
@@ -667,9 +700,52 @@ export function EntriesSection({
                       <span className="num text-[11px] text-faint">{op.key}</span>
                     </div>
                     <div className="text-sm text-muted">{op.definition}</div>
-                    <div className="mt-1 text-xs text-faint">
-                      Strong performer: {op.what_good_looks_like}
-                    </div>
+
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {(c.business_archetypes ?? []).length > 0 && (
+        <Panel eyebrow="Leadership archetypes (shown after play)" title="Business archetypes">
+          <p className="mb-2 text-xs text-muted">
+            One per possible dominant pattern (6 pairs + 4 singles over the four parameters). The
+            participant sees exactly one of these, picked from where they placed most units.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(c.business_archetypes ?? []).map((a, ai) => (
+              <div key={ai} className="rounded-xl border border-line p-3">
+                <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                  {a.keys.map((k) => (
+                    <span key={k} className="num rounded-full bg-paper px-2 py-0.5 text-[10px] text-faint">
+                      {k}
+                    </span>
+                  ))}
+                </div>
+                {editing ? (
+                  <>
+                    <input
+                      className="input text-sm font-medium"
+                      value={a.name}
+                      onChange={(e) =>
+                        set(["common_data", "business_archetypes", ai, "name"], e.target.value)
+                      }
+                    />
+                    <textarea
+                      className="input mt-1 min-h-[64px] w-full resize-y text-sm"
+                      value={a.description}
+                      onChange={(e) =>
+                        set(["common_data", "business_archetypes", ai, "description"], e.target.value)
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="text-sm font-medium text-ink">{a.name}</div>
+                    <p className="mt-0.5 text-sm leading-relaxed text-muted">{a.description}</p>
                   </>
                 )}
               </div>

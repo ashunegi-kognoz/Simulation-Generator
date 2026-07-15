@@ -37,7 +37,10 @@ from app.schemas.content import (
     kv_int,
     BalanceReport,
     BusinessPriority,
+    ArchetypeSet,
+    BusinessArchetype,
     CommonData,
+    LandscapeEntry,
     DynamicStance,
     OutcomeParameter,
     PriorityRow,
@@ -212,7 +215,11 @@ def _bible(rng: random.Random) -> NarrativeBible:
 def _common(rng: random.Random) -> CommonData:
     return CommonData(
         allocation_room_data=_prose(rng.randint(1, 10**9), "The allocation room frames the decision space"),
-        business_landscape=_prose(rng.randint(1, 10**9), "The business landscape sets mandate and urgency"),
+        business_landscape=[
+            LandscapeEntry(title="The market", body=_prose(rng.randint(1, 10**9), "The market context sets the competitive backdrop")),
+            LandscapeEntry(title="Cost structure", body=_prose(rng.randint(1, 10**9), "The cost base and margin pressure define the squeeze")),
+            LandscapeEntry(title="Operating pressure", body=_prose(rng.randint(1, 10**9), "Operational constraints and deadlines set the urgency")),
+        ],
         business_priorities=[
             BusinessPriority(
                 title=t,
@@ -381,36 +388,46 @@ class MockLLMProvider:
                         key="capacity_commitment",
                         name="Capacity Commitment",
                         definition="Leaning toward expanding committed capacity ahead of demand.",
-                        what_good_looks_like=(
-                            "Backs expansion where the demand case is strongest."
-                        ),
                     ),
                     OutcomeParameter(
                         key="demand_protection",
                         name="Demand Protection",
                         definition="Leaning toward defending current customers and service levels.",
-                        what_good_looks_like=(
-                            "Protects the base before chasing new volume."
-                        ),
                     ),
                     OutcomeParameter(
                         key="financial_discipline",
                         name="Financial Discipline",
                         definition="Leaning toward margin, cash, and payback before scale.",
-                        what_good_looks_like=(
-                            "Weighs margin impact before scale impact."
-                        ),
                     ),
                     OutcomeParameter(
                         key="execution_reliability",
                         name="Execution Reliability",
                         definition="Leaning toward sequencing change without breaking delivery.",
-                        what_good_looks_like=(
-                            "Phases moves to keep commitments intact."
-                        ),
                     ),
                 ],
             )
+        elif isinstance(schema, type) and issubclass(schema, ArchetypeSet):
+            keys_hint = _hint(input, "PARAM_KEYS")
+            keys = keys_hint.split(",") if keys_hint else [
+                "capacity_commitment", "demand_protection", "financial_discipline", "execution_reliability",
+            ]
+            from itertools import combinations
+            combos = [list(c) for c in combinations(keys, 2)] + [[k] for k in keys]
+            parsed = ArchetypeSet(
+                archetypes=[
+                    BusinessArchetype(
+                        keys=c,
+                        name=f"The {'/'.join(w.split('_')[0].title() for w in c)} Leader",
+                        description=(
+                            "You lead by weighing these fronts first and committing where they "
+                            "reinforce each other, while keeping an honest eye on what this "
+                            "pattern leaves lighter elsewhere in the business."
+                        ),
+                    )
+                    for c in combos
+                ]
+            )
+
         elif schema is TypeSet:
             parsed = TypeSet(
                 inferred_category="Strategy",
