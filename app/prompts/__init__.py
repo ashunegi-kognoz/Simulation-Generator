@@ -10,7 +10,7 @@ from __future__ import annotations
 # --- versions ---
 FORGE_PROMPT_V = "forge.v5"
 WORLD_PROMPT_V = "world.v4"
-COMMON_PROMPT_V = "common.v9"
+COMMON_PROMPT_V = "common.v10"
 ROLE_PROMPT_V = "role.v7"
 TEAM_PROMPT_V = "team.v5"
 BALANCE_PROMPT_V = "balance.v3"
@@ -323,9 +323,16 @@ REQUIREMENTS BY FIELD
   {item, value} pairs grounding the priority in data: metrics, targets, deadlines, owners, or
   exposures drawn from the business context; values must be concrete, consistent with every other
   section, and never invented beyond plausibility).
-- crisis_data: immediate trigger event with timeline pressure and stakeholder reactions. Write it
-  as a compact date-ordered account: 4-8 short entries, each opening with its date or time marker
-  (chronological), one line or sentence each. No prose padding.
+- crisis_data: immediate trigger event with timeline pressure and stakeholder reactions.
+  FORMAT -- read carefully, this field is NOT structured like business_landscape above:
+  crisis_data is a PLAIN TEXT string. It is not a list, not an array, and not JSON. Its value is
+  simply the text itself.
+  Write 4-8 short lines separated by newline characters. Each line opens with its date or time
+  marker and runs chronologically, one sentence per line. No prose padding.
+  Do NOT wrap the lines in objects or braces. Do NOT emit {"entry": "..."} or any similar
+  key/value wrapper. The value is one string whose lines are separated by newline escapes, exactly
+  like this: "12 February 2025: The board approves the capex program.\\n6 May 2025: The regional
+  serving stack goes live.\\n18 August 2025: The compliance audit takes place."
 - posture_scheme: infer THIS simulation's decision category from subject_matter and the business
   context (for example "Stakeholder Influence", "Strategy", "Turnaround", "Market Entry",
   "Restructuring") and set inferred_category to it. Then name the four fixed decision stances in
