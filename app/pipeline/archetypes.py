@@ -23,41 +23,146 @@ from app.llm.call import parse_call
 from app.schemas.content import ArchetypeSet, BusinessArchetype, ReflectionSpec
 
 ARCHETYPE_PROMPT = """\
-You write LEADERSHIP ARCHETYPES for an executive decision simulation.
+You are an executive leadership assessment writer.
 
-The simulation scores participants on FOUR outcome parameters (given below). In every decision the
-participant allocates 100 units across four options -- one option per parameter. At the end, their
-DOMINANT PATTERN is either their top-2 parameters (a pair) or, if they put everything on one
-parameter, that single parameter.
+Your job is to write leadership archetypes that feel like they belong in a premium executive
+assessment, not a personality quiz.
 
-Write EXACTLY 10 archetypes covering every possible dominant pattern:
-- 6 archetypes for the 6 unordered PAIRS of parameters,
-- 4 archetypes for the 4 SINGLE-parameter extremes.
+The writing should sound like something a senior operations leader, COO, supply chain executive,
+business unit head, or commercial leader would recognise as a credible description of leadership
+behaviour. Write with the quality of a Korn Ferry, Hogan, Deloitte, McKinsey or BCG leadership
+assessment. The goal is recognition, not entertainment. A participant should read the archetype and
+think: "That genuinely sounds like how I lead."
 
-Each archetype:
-- keys: the parameter key(s) it covers -- exactly the given keys, two for a pair, one for a single.
-- name: 2-4 words. A recognizable leadership identity (e.g. "The Evidence-Led Operator"), NOT a
-  restatement of the parameter names. No two archetype names may feel like synonyms.
-- description: 35-55 words, plain everyday English, written TO the participant ("You lead by...").
-  Cover: (1) how this leader tends to decide, (2) what they naturally protect or push for, and
-  (3) one honest watch-out -- what this pattern can under-attend to. Ground it in the language of
-  the business context provided (operations, delivery, cost, customers -- whatever fits), never in
-  generic corporate jargon.
+----------------------------------------
+WHAT AN ARCHETYPE IS (the mechanic)
+----------------------------------------
+This simulation scores participants on FOUR outcome parameters. In every decision the participant
+allocates 100 units across four options -- one option per parameter. Their DOMINANT PATTERN is
+either their top-2 parameters (a pair) or, when everything goes to one parameter, that single
+parameter. An archetype is the leadership identity behind one such pattern.
 
-Rules:
-- MUTUALLY DISTINCT: each of the 10 must read as a different leader. If two descriptions could
-  describe the same person, rewrite them.
-- SINGLE-parameter archetypes describe an all-in leaning: acknowledge its strength AND the exposure
-  of ignoring the other three.
-- No scores, no judgement of better/worse -- every archetype is a legitimate way to lead with a
-  real trade-off.
-- Simple words. A busy operations leader should understand every sentence on first read.
-- Return JSON only, no commentary.
+You will be GIVEN the exact list of patterns to write for. Write ONE archetype per given pattern,
+in the same order, using exactly the keys listed for it. Do not invent, merge, reorder, or skip
+patterns, and do not create any pattern that is not on the list.
+
+----------------------------------------
+AUDIENCE
+----------------------------------------
+Assume the participant is an experienced business leader -- a business unit head, operations
+leader, supply chain leader, commercial leader, or senior manager.
+
+Write in clear, professional business English that feels natural to leaders working in the business
+culture of the LOCALE given in the input. It should not feel academic, and it should not default to
+the idiom of some other region.
+
+Use business terms commonly understood in enterprises, such as: commercial terms, customer
+commitments, operating model, margin improvement, delivery performance, business priorities,
+portfolio, cost discipline, operational execution.
+
+Avoid: excessive idioms, sports metaphors, military metaphors, colloquial expressions tied to one
+region, exaggerated or motivational language.
+
+Keep the tone professional, balanced and practical. Every sentence should be easy for a busy
+executive to understand on first reading.
+
+----------------------------------------
+NAMING
+----------------------------------------
+Never write gimmicky names or overly dramatic descriptions.
+
+Avoid words like: hunter, detective, warrior, guardian, surgeon, ninja, wizard, superhero, hero,
+champion.
+
+Do NOT begin an archetype name with an article. Never start a name with "The", "A", or "An" --
+names should stand on their own.
+
+Prefer names that describe an executive leadership style, for example: Insight-Led Steward,
+Delivery Strategist, Margin Builder, Commercial Realiser, Portfolio Corrector, Disciplined
+Operator, Performance Integrator, Operational Architect, Commercial Optimiser, Strategic Balancer,
+Customer-Centred Executor, Value Realiser.
+
+Avoid: "The Delivery Strategist", "The Margin Builder", "The Operational Architect".
+
+Names should sound credible in an executive workshop.
+
+----------------------------------------
+DESCRIPTIONS
+----------------------------------------
+Descriptions should describe observable leadership behaviour -- not personality traits.
+
+Keep them SHORT: 30-40 words, 2-3 sentences, three or four lines on screen. Every sentence must
+earn its place. In that space, cover only:
+1. How this leader decides, and what they optimise or protect (these belong together -- do not
+   spend a separate sentence on each).
+2. The trade-off their style can create.
+
+Do not attempt to cover every nuance. Choose the single sharpest, most recognisable behaviour and
+the single most honest trade-off, and cut everything else. Brevity must not cost specificity: stay
+concrete about this business. Never pad with vague, generic or abstract phrasing to fill the space,
+and never drop the trade-off to save words.
+
+The trade-off should never sound like a criticism.
+
+Instead of: "You ignore customers."
+Prefer: "Commercial opportunities may take longer to translate into action while confidence is
+built." Or: "This approach can delay difficult pricing conversations until operational certainty is
+established."
+
+Trade-offs should sound like natural consequences of prioritisation.
+
+Avoid absolute language. Never say: always, never, refuses, ignores, only, everything.
+Instead use: can, may, tends to, is more likely to, sometimes, often.
+
+The tone should be balanced and respectful. Every archetype should sound like a legitimate
+executive leadership style with different strengths -- not good vs bad.
+
+Avoid repeating sentence structures. Do not generate ten descriptions that all begin with
+"You lead by...". Vary the opening naturally, for example: "You prefer to...", "Your decisions
+usually begin with...", "You bring discipline by...", "You instinctively...", "When facing
+pressure...", "Your first instinct is...". Descriptions should flow naturally rather than follow a
+fixed template.
+
+The four dimensions are not personality dimensions. They represent operational priorities.
+Therefore describe leadership decisions in business language such as: sequencing decisions,
+allocating resources, protecting customer commitments, improving margin, balancing commercial and
+operational risk, prioritising investment, improving execution, building operational resilience,
+creating pricing discipline, increasing visibility, strengthening delivery performance.
+
+Avoid repeating the parameter names. Translate them into natural executive language.
+Example -- instead of "cost-to-serve visibility" say "understanding where value is created";
+instead of "commercial repricing" say "resetting commercial terms"; instead of "operational
+efficiency" say "simplifying operations"; instead of "service protection" say "protecting critical
+customer commitments".
+
+Each archetype should feel distinct. If the names or descriptions could plausibly describe the same
+leader, rewrite them until they are clearly different.
+
+Single-parameter archetypes represent an intentionally strong leadership bias. Acknowledge that
+this focus creates clarity and speed, while also explaining what may receive less attention. Do not
+portray these as extreme personalities. They are simply leaders with a very strong operating
+preference.
+
+Descriptions should read smoothly in one paragraph. Avoid checklist writing. Avoid buzzwords. Avoid
+motivational language. Write in plain professional English. Target reading level: experienced
+business leaders. The writing should feel timeless rather than trendy.
+
+----------------------------------------
+OUTPUT CONTRACT
+----------------------------------------
+Return JSON with an "archetypes" array containing EXACTLY one object per pattern in the given
+PATTERNS list, in the same order. Each object has EXACTLY:
+- keys: the parameter key(s) for that pattern, copied verbatim from the PATTERNS list (two keys for
+  a pair, one key for a single).
+- name: 2-4 words, as described under NAMING.
+- description: 30-40 words, one short flowing paragraph, as described under DESCRIPTIONS.
+
+Return JSON only. No commentary.
 """
 
 
 def _pattern_sets(keys: tuple[str, ...]) -> set[frozenset[str]]:
-    return {frozenset(c) for c in combinations(keys, 2)} | {frozenset((k,)) for k in keys}
+    return {frozenset(c) for c in enumerate_patterns(keys)}
 
 
 @lru_cache(maxsize=64)
@@ -97,19 +202,44 @@ def _constrained_archetype_set(keys: tuple[str, ...]) -> type[ArchetypeSet]:
     )
 
 
-def _input_blob(subject_matter: str, business_context: str, spec: ReflectionSpec) -> str:
+def enumerate_patterns(keys: tuple[str, ...]) -> list[list[str]]:
+    """The exact patterns to write archetypes for: every unordered pair, then
+    every single. For four parameters that is 6 + 4 = 10.
+
+    Enumerated in Python and handed to the model as an explicit list, because
+    asking a model to derive "all unordered pairs" is unreliable -- it tends to
+    emit ordered pairs (AB and BA) and/or drop the singles. Writing to a given
+    list is something it does reliably.
+    """
+    return [list(c) for c in combinations(keys, 2)] + [[k] for k in keys]
+
+
+def _input_blob(
+    subject_matter: str, business_context: str, spec: ReflectionSpec, locale: str
+) -> str:
+    by_key = {p.key: p for p in spec.outcome_parameters}
     params = "\n".join(
         f"- key={p.key} | name={p.name} | definition={p.definition}"
         for p in spec.outcome_parameters
     )
-    keys_csv = ",".join(p.key for p in spec.outcome_parameters)
+    keys = tuple(p.key for p in spec.outcome_parameters)
+    patterns = enumerate_patterns(keys)
+    lines = []
+    for i, combo in enumerate(patterns, 1):
+        names = " + ".join(by_key[k].name for k in combo)
+        kind = "PAIR" if len(combo) == 2 else "SINGLE (all-in on one priority)"
+        lines.append(f"{i}. keys={combo} | {names} | {kind}")
+    patterns_block = "\n".join(lines)
     return (
+        f"LOCALE: {locale}\n\n"
         f"SUBJECT MATTER:\n{subject_matter}\n\n"
         f"BUSINESS CONTEXT:\n{business_context}\n\n"
         f"FRAMEWORK: {spec.framework_name} -- {spec.framework_definition}\n"
         f"LEARNING TENSION: {spec.learning_tension}\n\n"
-        f"OUTCOME PARAMETERS:\n{params}\n"
-        f"PARAM_KEYS={keys_csv}\n"
+        f"OUTCOME PARAMETERS:\n{params}\n\n"
+        f"PATTERNS -- write EXACTLY {len(patterns)} archetypes, one per line below, in this order,"
+        f" copying each pattern's keys verbatim:\n{patterns_block}\n\n"
+        f"PARAM_KEYS={','.join(keys)}\n"
     )
 
 
@@ -118,6 +248,7 @@ async def generate_archetypes(
     business_context: str,
     spec: ReflectionSpec,
     llm,
+    locale: str = "en-IN",
 ) -> ArchetypeSet:
     settings = get_settings()
     keys = tuple(p.key for p in spec.outcome_parameters)
@@ -126,7 +257,7 @@ async def generate_archetypes(
         llm,
         model=settings.llm_model_mid,
         instructions=ARCHETYPE_PROMPT,
-        input=_input_blob(subject_matter, business_context, spec),
+        input=_input_blob(subject_matter, business_context, spec, locale),
         schema=schema,
         store=False,
     )

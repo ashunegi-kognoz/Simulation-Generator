@@ -199,6 +199,7 @@ export interface ReflectionParameterScore {
 export interface ReflectionRound {
   total_units: number;
   parameters: Record<string, ReflectionParameterScore>;
+  lean_summary: string; // plain-English "you leaned most on X, least on Y" (server-computed)
 }
 
 export interface BusinessArchetype {

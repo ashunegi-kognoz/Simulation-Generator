@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ApiError, api } from "../api/client";
 import type { Letter, LetterUnits, ReflectionBoardResponse, RenderedSession } from "../api/types";
 import { AllocationMeter } from "../components/AllocationMeter";
+import { ReflectionBoard } from "../components/ReflectionBoard";
 import { Banner, Panel, Spinner } from "../components/ui";
 import { emptyUnits, isBalanced, withUnit } from "../lib/allocation";
 
@@ -142,66 +143,7 @@ export function ParticipantRuntime({
         </>
       )}
 
-      {phase === "board" && board && (
-        <>
-          {board.framework && (
-            <Panel eyebrow="Reflection Board" title={board.framework.framework_name}>
-              <div className="space-y-3 text-sm leading-relaxed text-ink">
-                <p>{board.framework.framework_definition}</p>
-                <div>
-                  <div className="eyebrow mb-1">The tension you navigated</div>
-                  <p className="text-muted">{board.framework.learning_tension}</p>
-                </div>
-              </div>
-            </Panel>
-          )}
-
-          {Object.entries(board.rounds).map(([roundIndex, round]) => (
-            <Panel
-              key={roundIndex}
-              eyebrow={`Round ${roundIndex}`}
-              title="Where your units went"
-            >
-              <div className="space-y-5">
-                {board.outcome_parameters.map((p) => {
-                  const cell = round.parameters[p.key];
-                  if (!cell) return null;
-                  const pct = Math.round(cell.score * 100);
-                  return (
-                    <div key={p.key}>
-                      <div className="mb-1 flex items-baseline justify-between gap-3">
-                        <span className="text-sm font-medium text-ink">{p.name}</span>
-                        <span className="num text-sm text-ink">
-                          {pct}%<span className="ml-2 text-xs text-muted">({cell.units} units)</span>
-                        </span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-line/60">
-                        <div className="h-full rounded-full bg-ink/70" style={{ width: `${pct}%` }} />
-                      </div>
-                      <p className="mt-1.5 text-xs leading-relaxed text-muted">{p.definition}</p>
-                    </div>
-                  );
-                })}
-                <div className="border-t border-line pt-3 text-xs text-muted">
-                  <span className="num">{round.total_units}</span> units allocated this round. Shares
-                  are your own allocation — every unit you placed on an option counted toward that
-                  option's outcome parameter.
-                </div>
-              </div>
-            </Panel>
-          ))}
-
-          {board.archetype && board.dominant_pattern && (
-            <Panel eyebrow="Your leadership pattern" title={board.archetype.name}>
-              <p className="mb-2 text-xs text-muted">
-                Based on where you placed most of your units:{" "}
-                {board.dominant_pattern.names.join(" + ")}
-              </p>
-              <p className="text-sm leading-relaxed text-ink">{board.archetype.description}</p>
-            </Panel>
-          )}
-        </>
-      )}
+      {phase === "board" && board && <ReflectionBoard board={board} />}
     </div>
   );
 }

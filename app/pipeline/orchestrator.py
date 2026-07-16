@@ -190,7 +190,7 @@ async def generate_with_audit(
             archetype_set = cp.load("archetypes")
         else:
             archetype_set = await generate_archetypes(
-                spec.subject_matter, spec.business_context, reflection_spec, llm
+                spec.subject_matter, spec.business_context, reflection_spec, llm, spec.locale
             )
             cp.save("archetypes", archetype_set)
         common.business_archetypes = archetype_set.archetypes
