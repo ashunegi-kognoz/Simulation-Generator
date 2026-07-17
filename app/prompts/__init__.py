@@ -8,11 +8,11 @@ verbatim from the brief; only the version constants are added here.
 from __future__ import annotations
 
 # --- versions ---
-FORGE_PROMPT_V = "forge.v5"
-WORLD_PROMPT_V = "world.v4"
-COMMON_PROMPT_V = "common.v10"
-ROLE_PROMPT_V = "role.v7"
-TEAM_PROMPT_V = "team.v5"
+FORGE_PROMPT_V = "forge.v6"
+WORLD_PROMPT_V = "world.v5"
+COMMON_PROMPT_V = "common.v11"
+ROLE_PROMPT_V = "role.v9"
+TEAM_PROMPT_V = "team.v6"
 BALANCE_PROMPT_V = "balance.v3"
 NAIVE_PROMPT_V = "naive.v2"
 CONSISTENCY_PROMPT_V = "consistency.v3"
@@ -78,7 +78,7 @@ CONTEXT (always provided)
 
 HARD RULES
 1. Stay strictly inside provided context. Do not invent company identity beyond inputs.
-2. Use concrete numbers, deadlines, and named stakeholders grounded in the bible.
+2. Use concrete numbers, deadlines, and stakeholders referred to by role designation, grounded in the bible.
 3. Write one decision question per requested dimension.
 4. For each decision, return exactly four options: Protect, Enable, Hybrid, Defer (one each).
 5. Each option must include:
@@ -160,7 +160,7 @@ Every decision and every option must sit inside THIS role's stated authority bou
 belongs to another executive (for example pay policy, pricing, plant throughput), frame this role's
 option in terms of what THIS role controls: a budget envelope, a constraint, a recommendation, or an
 escalation. For example, a CFO sizes and conditions a payout envelope; the owning executive settles
-the terms. Never attribute the participant's own authority to another named character.
+the terms. Never attribute the participant's own authority to another stakeholder.
 
 IMPLEMENTATION GUIDANCE
 
@@ -267,6 +267,16 @@ Return only JSON matching the decision schema:
 - decision_number, dimension, title, question
 - options[] with posture, label, content
 Do not output markdown, explanations, or extra keys.
+
+NO PERSONAL NAMES (applies to every field you write)
+- Never invent or use a personal name for any human: no first names, no surnames, no full names,
+  no initials standing in for a person (no "Amit Gupta", no "Ms Rao", no "A. Sharma", no "Priya").
+- Refer to every stakeholder ONLY by role designation or organisational label: "the Unit Head",
+  "the Group CFO", "the control tower lead", "the anchor client", "the board", "corporate SHE".
+- Use "you" / "your" for the participant. Never give the participant a personal name.
+- Organisation, product, plant, site and client names are still allowed; the ban is on PEOPLE.
+- If an input (business context or role brief) contains a personal name, do not carry it into the
+  output -- replace it with that person's role designation.
 """
 
 # --- 10.2 WorldArchitect ---
@@ -282,7 +292,9 @@ REQUIRED OUTPUT
 Return JSON matching the narrative bible schema with:
 - org_facts: operating model, mandate, constraints, strategic pressure
 - timeline: quarter sequence with inciting event, key deadlines, board/investor moments
-- characters: named stakeholders with role, motive, competing_interest
+- characters: stakeholders identified by ROLE DESIGNATION ONLY, each with role, motive,
+  competing_interest. The `name` field must hold a role label ("Unit Head, Smelter Complex",
+  "Group CFO", "Corporate SHE Lead") -- NEVER a personal name. See NO PERSONAL NAMES below.
 - shared_facts: quantified anchors reused consistently across participants/teams
 - tone_guide: concise executive writing direction
 
@@ -293,11 +305,21 @@ QUALITY BAR
 - Do not summarize strategic tension, explain competing priorities, recommend priorities,
   or explain the dilemma.
 - Facts should allow multiple reasonable interpretations.
-- If participant roles are provided in the inputs, named characters must NOT duplicate or overlap
+- If participant roles are provided in the inputs, stakeholders must NOT duplicate or overlap
   any participant's title or remit; every character keeps one consistent reporting line everywhere
   they appear.
 - No generic filler or motivational language.
 - No markdown, no prose outside JSON.
+
+NO PERSONAL NAMES (applies to every field you write)
+- Never invent or use a personal name for any human: no first names, no surnames, no full names,
+  no initials standing in for a person (no "Amit Gupta", no "Ms Rao", no "A. Sharma", no "Priya").
+- Refer to every stakeholder ONLY by role designation or organisational label: "the Unit Head",
+  "the Group CFO", "the control tower lead", "the anchor client", "the board", "corporate SHE".
+- Use "you" / "your" for the participant. Never give the participant a personal name.
+- Organisation, product, plant, site and client names are still allowed; the ban is on PEOPLE.
+- If an input (business context or role brief) contains a personal name, do not carry it into the
+  output -- replace it with that person's role designation.
 """
 
 # --- 10.3 CommonContent ---
@@ -370,13 +392,25 @@ REQUIREMENTS BY FIELD
 
 GLOBAL RULES
 - Every important claim must be grounded in bible facts.
-- Use specific numbers, realistic timelines, named stakeholders, explicit consequences.
+- Use specific numbers, realistic timelines, stakeholders referred to by role designation,
+  explicit consequences. Priority table 'Owner' rows must name a ROLE ("Head, Power Plant
+  Operations"), never a person.
 - Keep language concise, direct, and decision-oriented.
 - Before the decision board, present facts only; do not interpret those facts.
 - Avoid cliches, cheerleading, and generic abstractions.
 - Figures may be introduced where inputs lack them, but every figure must be plausible for the
   described business, used consistently across all sections, and never contradict an input.
 - Output must be free of typos, stray tab/control characters, and truncated sentences.
+
+NO PERSONAL NAMES (applies to every field you write)
+- Never invent or use a personal name for any human: no first names, no surnames, no full names,
+  no initials standing in for a person (no "Amit Gupta", no "Ms Rao", no "A. Sharma", no "Priya").
+- Refer to every stakeholder ONLY by role designation or organisational label: "the Unit Head",
+  "the Group CFO", "the control tower lead", "the anchor client", "the board", "corporate SHE".
+- Use "you" / "your" for the participant. Never give the participant a personal name.
+- Organisation, product, plant, site and client names are still allowed; the ban is on PEOPLE.
+- If an input (business context or role brief) contains a personal name, do not carry it into the
+  output -- replace it with that person's role designation.
 """
 
 # --- 10.4 RoleSmith ---
@@ -386,12 +420,20 @@ Using bible + role_overview + kpi_critical_tradeoff, return JSON only with role_
 KPI OWNERSHIP
 - The kpi_tradeoffs in GENERATION_CONTEXT are THIS role's owned dilemmas: each pairs a metric
   this role answers for with the competing pressure that makes it hard.
-- situation_data must be built around these dilemmas: the metric, its target, and the competing
-  pressure must be concretely present in the situation (as facts and stakes, never as advice).
+- situation_data must be built around these dilemmas, using whatever parts are given:
+  * metric + target + competing pressure given -> all three concretely present in the situation
+    (as facts and stakes, never as advice).
+  * target ABSENT -> treat the metric as directional (improve / hold / protect), grounded in the
+    business context's own figures. NEVER invent a numeric target that was not provided.
+  * competing pressure ABSENT -> derive the tension from the role_context brief (its result areas
+    usually pull against each other) or from the business context. The situation must still
+    contain a genuine role-owned dilemma; it just is not prescribed.
+  * kpi_tradeoffs entirely ABSENT -> build the role's dilemmas from role_context and the business
+    context alone. Absence of KPI data must never produce a situation without tension.
 - Do not assign these metrics to other characters; other roles may feel their own pressures, but
   accountability for these KPIs sits here.
 - If GENERATION_CONTEXT contains a non-empty role_context, treat it as an authoritative brief for THIS
-  role: fold its specifics (responsibilities, mandate, reporting reality, tensions, named stakeholders)
+  role: fold its specifics (responsibilities, mandate, reporting reality, tensions, stakeholders by role)
   into role_data and situation_data, staying consistent with the bible. Do not contradict it; do not
   invent beyond it and the bible.
 
@@ -399,10 +441,16 @@ IDENTITY AUTHORITY
 - The structured role_overview fields (role_title, function, entity, reporting_line, scope,
   seniority_band) are AUTHORITATIVE for this participant's identity and must be used as given, in
   every round of the simulation.
+- ABSENT FIELDS: any of these fields may be missing from GENERATION_CONTEXT. An absent field is
+  simply unknown -- NEVER invent a specific value for it (no invented reporting line, no invented
+  remit), never write placeholder text ("NA", "unknown", "TBD"), and never remark on the absence.
+  Ground the identity entirely in the fields that ARE present plus role_context. Where the
+  narrative genuinely needs an unstated detail (e.g. who this role escalates to), keep it generic
+  and structural ("your reporting line", "unit leadership") rather than inventing a named title.
 - role_context enriches the role with detail but NEVER overrides identity: if the brief implies a
   different title or remit than the structured fields, keep the structured identity and absorb only
   the compatible detail.
-- Never invent a named character whose remit duplicates or overlaps this participant's authority;
+- Never invent a stakeholder whose remit duplicates or overlaps this participant's authority;
   supporting stakeholders must hold clearly distinct mandates and consistent reporting lines.
 
 ROLE STANDARD
@@ -415,7 +463,7 @@ SITUATION STANDARD
 - Present one authentic role-owned executive decision under real constraints.
 - Describe current operating state, urgency source, stakeholder requests, dependencies, constraints,
   deadlines, and measurable business facts.
-- Anchor with concrete data (numbers, dates, named stakeholders) from the bible.
+- Anchor with concrete data (numbers, dates, stakeholders by role designation) from the bible.
 - End with a short "YOUR DATA" block (exactly 4 labelled quantitative anchors).
 - Only observable facts. Do not interpret those facts.
 - Do NOT describe competing priorities, trade-offs, possible approaches, recommended direction,
@@ -429,6 +477,16 @@ QUALITY RULES
   needs for the coming decisions.
 - Output must be free of typos, stray tab/control characters, truncated sentences, and duplicated
   headings.
+
+NO PERSONAL NAMES (applies to every field you write)
+- Never invent or use a personal name for any human: no first names, no surnames, no full names,
+  no initials standing in for a person (no "Amit Gupta", no "Ms Rao", no "A. Sharma", no "Priya").
+- Refer to every stakeholder ONLY by role designation or organisational label: "the Unit Head",
+  "the Group CFO", "the control tower lead", "the anchor client", "the board", "corporate SHE".
+- Use "you" / "your" for the participant. Never give the participant a personal name.
+- Organisation, product, plant, site and client names are still allowed; the ban is on PEOPLE.
+- If an input (business context or role brief) contains a personal name, do not carry it into the
+  output -- replace it with that person's role designation.
 """
 
 # --- 10.5 TeamScenario and MemberSituation ---
@@ -456,6 +514,16 @@ HARD RULES
 - Keep writing concise, quantified, and realistic.
 
 Return JSON only matching the expected schema.
+
+NO PERSONAL NAMES (applies to every field you write)
+- Never invent or use a personal name for any human: no first names, no surnames, no full names,
+  no initials standing in for a person (no "Amit Gupta", no "Ms Rao", no "A. Sharma", no "Priya").
+- Refer to every stakeholder ONLY by role designation or organisational label: "the Unit Head",
+  "the Group CFO", "the control tower lead", "the anchor client", "the board", "corporate SHE".
+- Use "you" / "your" for the participant. Never give the participant a personal name.
+- Organisation, product, plant, site and client names are still allowed; the ban is on PEOPLE.
+- If an input (business context or role brief) contains a personal name, do not carry it into the
+  output -- replace it with that person's role designation.
 """
 
 # --- 10.6 BalanceCritic ---

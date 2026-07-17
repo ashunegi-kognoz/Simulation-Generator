@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import field_validator, BaseModel, Field, model_validator
 
 
 # Hard ceiling mirrored from Section 5.1 / config (kept local so schema
@@ -20,19 +20,45 @@ from pydantic import BaseModel, Field, model_validator
 MAX_TEAMS = 5
 
 
+_NA_LIKE = {"na", "n/a", "n.a.", "n.a", "-", "--", "none", "null", "tbd"}
+
+
+def _na_to_empty(v):
+    """Treat 'NA'-style placeholders as absent. Authors mark unknown cells NA in
+    spreadsheets; a literal 'NA' reaching a prompt reads as content ('reports to
+    NA'), so it is normalized to empty at the boundary."""
+    if isinstance(v, str) and v.strip().lower() in _NA_LIKE:
+        return ""
+    return v
+
+
 class KpiTradeoff(BaseModel):
     metric: str
-    target: str
+    # target and competing_pressure are OPTIONAL: client data often lacks them.
+    # The ROLE prompt has explicit tiered handling for their absence.
+    target: str = ""
     current: str | None = None
-    competing_pressure: str
+    competing_pressure: str = ""
+
+    @field_validator("metric", "target", "current", "competing_pressure", mode="before")
+    @classmethod
+    def _kpi_na(cls, v):
+        return _na_to_empty(v)
 
 
 class RoleOverview(BaseModel):
     role_title: str
     function: str
-    entity: str
-    reporting_line: str
-    scope: str
+    entity: str = ""
+    reporting_line: str = ""
+    scope: str = ""
+
+    @field_validator(
+        "role_title", "function", "entity", "reporting_line", "scope", "context", mode="before"
+    )
+    @classmethod
+    def _role_na(cls, v):
+        return _na_to_empty(v)
     seniority_band: Literal["mid", "senior", "exec", "c_suite"] = "senior"
     gender: Literal["male", "female", "non_binary", "unspecified"] = "unspecified"
     # KPI trade-offs owned by THIS role. When present, the participant playing this
