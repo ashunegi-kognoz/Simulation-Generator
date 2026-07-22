@@ -32,6 +32,7 @@ _PYDANTIC = {
 def _enc_round(rc: RoundParticipantContent | MemberBuildContent) -> dict[str, Any]:
     return {
         "situation_data": rc.situation_data,
+        "your_data": [a.model_dump() if hasattr(a, "model_dump") else a for a in getattr(rc, "your_data", [])],
         "decision_board": [d.model_dump() for d in rc.decision_board],
         "reports": [r.model_dump() for r in rc.reports],
         "flagged": list(rc.flagged),
@@ -88,6 +89,7 @@ def decode(blob: dict[str, Any]) -> Any:
             rounds={
                 int(i): RoundParticipantContent(
                     situation_data=rc["situation_data"],
+                    your_data=rc.get("your_data", []),
                     decision_board=_dec_board(rc["decision_board"]),
                     reports=_dec_reports(rc["reports"]),
                     flagged=rc["flagged"],

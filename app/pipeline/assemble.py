@@ -38,6 +38,7 @@ SCORING_VERSION = "score.v1"
 class RoundParticipantContent:
     situation_data: str
     decision_board: list[Decision]
+    your_data: list = field(default_factory=list)  # list[DataAnchor], structured YOUR DATA
     reports: list[BalanceReport] = field(default_factory=list)
     flagged: list[bool] = field(default_factory=list)
     revisions: list[int] = field(default_factory=list)
@@ -100,6 +101,7 @@ def assemble(
                 participant_id=p.participant_id,
                 role_data=p.role_data,
                 situation_data=rc.situation_data,
+                your_data=rc.your_data,
                 decision_board=rc.decision_board,
             )
         rounds[f"round_{idx}"] = RoundOutput(round_type="individual", participants=pc_map)

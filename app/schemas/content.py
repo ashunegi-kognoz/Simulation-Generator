@@ -181,6 +181,22 @@ class ArchetypeSet(BaseModel):
     archetypes: list[BusinessArchetype] = Field(min_length=10, max_length=10)
 
 
+class CrisisEntry(BaseModel):
+    """One period of the unfolding crisis: a marker plus a single sentence.
+    Rendered as a row (period | event). Replaces the old newline-delimited string."""
+
+    period: str  # the marker, e.g. "Q1 (Apr-Jun)", "March 2025", "Day 3"
+    event: str   # one sentence on what happens in that period
+
+
+class DataAnchor(BaseModel):
+    """One quantitative fact the participant owns, rendered as a row (label | value).
+    Populates the situation's `your_data` table; keeps situation_data pure prose."""
+
+    label: str  # short label, e.g. "Plant availability"
+    value: str  # concrete value, e.g. "91.2% vs 94% commitment"
+
+
 class LandscapeEntry(BaseModel):
     """One titled slice of the business landscape: a short header plus a tight
     paragraph. Displayed as a titled card (numbered client-side)."""
@@ -196,6 +212,37 @@ class CommonData(BaseModel):
     # 10 leadership archetypes (6 pairs + 4 singles over the outcome parameters);
     # empty on sims generated before the feature.
     business_archetypes: list[BusinessArchetype] = Field(default_factory=list)
+    # crisis_data is a structured list (period + event). Older sims stored it as one
+    # newline-delimited string; the validator below coerces those so they still load.
+    crisis_data: list[CrisisEntry] = Field(default_factory=list)
+
+    @field_validator("crisis_data", mode="before")
+    @classmethod
+    def _coerce_crisis(cls, v):
+        # Backward compat: older sims stored crisis_data as one string, lines shaped
+        # "<PERIOD>: <event>" separated by newlines (and sometimes as JSON-lines
+        # {"entry": "..."}). Split those into structured entries so old content loads.
+        import json as _json
+
+        if isinstance(v, str):
+            out = []
+            for raw in v.split("\n"):
+                line = raw.strip()
+                if not line:
+                    continue
+                # tolerate a stray {"entry": "..."} wrapper from very old sims
+                if line.startswith("{") and "entry" in line:
+                    try:
+                        line = str(_json.loads(line).get("entry", line)).strip()
+                    except Exception:
+                        pass
+                if ":" in line:
+                    period, event = line.split(":", 1)
+                    out.append({"period": period.strip(), "event": event.strip()})
+                else:
+                    out.append({"period": "", "event": line})
+            return out
+        return v
 
     @field_validator("business_landscape", mode="before")
     @classmethod
@@ -224,7 +271,6 @@ class CommonData(BaseModel):
         if isinstance(v, list):
             return [{"title": x, "table": []} if isinstance(x, str) else x for x in v]
         return v
-    crisis_data: str
     # Retired: facilitator prompts are no longer generated (the Reflection Board
     # is fully data-driven). Optional so pre-retirement sims keep validating.
     reflection_board_helping_data: str = ""
@@ -278,13 +324,15 @@ class DecisionSet(BaseModel):
 
 class RoleSituation(BaseModel):
     role_data: str
-    situation_data: str
+    situation_data: str  # pure prose; the data table lives in your_data
+    your_data: list[DataAnchor] = Field(default_factory=list)
 
 
 class ParticipantContent(BaseModel):
     participant_id: str
     role_data: str
     situation_data: str
+    your_data: list[DataAnchor] = Field(default_factory=list)
     decision_board: list[Decision]
 
 

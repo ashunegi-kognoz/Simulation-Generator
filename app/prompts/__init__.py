@@ -10,8 +10,8 @@ from __future__ import annotations
 # --- versions ---
 FORGE_PROMPT_V = "forge.v6"
 WORLD_PROMPT_V = "world.v5"
-COMMON_PROMPT_V = "common.v11"
-ROLE_PROMPT_V = "role.v9"
+COMMON_PROMPT_V = "common.v15"
+ROLE_PROMPT_V = "role.v13"
 TEAM_PROMPT_V = "team.v6"
 BALANCE_PROMPT_V = "balance.v3"
 NAIVE_PROMPT_V = "naive.v2"
@@ -345,16 +345,13 @@ REQUIREMENTS BY FIELD
   {item, value} pairs grounding the priority in data: metrics, targets, deadlines, owners, or
   exposures drawn from the business context; values must be concrete, consistent with every other
   section, and never invented beyond plausibility).
-- crisis_data: immediate trigger event with timeline pressure and stakeholder reactions.
-  FORMAT -- read carefully, this field is NOT structured like business_landscape above:
-  crisis_data is a PLAIN TEXT string. It is not a list, not an array, and not JSON. Its value is
-  simply the text itself.
-  Write 4-8 short lines separated by newline characters. Each line opens with its date or time
-  marker and runs chronologically, one sentence per line. No prose padding.
-  Do NOT wrap the lines in objects or braces. Do NOT emit {"entry": "..."} or any similar
-  key/value wrapper. The value is one string whose lines are separated by newline escapes, exactly
-  like this: "12 February 2025: The board approves the capex program.\\n6 May 2025: The regional
-  serving stack goes live.\\n18 August 2025: The compliance audit takes place."
+- crisis_data: the immediate trigger event with timeline pressure and stakeholder reactions,
+  as a STRUCTURED LIST (like business_landscape, NOT a string). 4-8 objects, each:
+    period : the marker for that step -- a quarter, month, or date (e.g. "Q1 (Apr-Jun)", "March 2025")
+    event  : ONE sentence on what happens in that period.
+  Rules: chronological order; each period value appears in AT MOST ONE object (if two things happen in
+  the same period, combine them into that one event sentence joined with "; "); no numbering or bullet
+  characters inside the strings. Do not emit crisis_data as a string or as {"entry": "..."}.
 - posture_scheme: infer THIS simulation's decision category from subject_matter and the business
   context (for example "Stakeholder Influence", "Strategy", "Turnaround", "Market Entry",
   "Restructuring") and set inferred_category to it. Then name the four fixed decision stances in
@@ -464,7 +461,12 @@ SITUATION STANDARD
 - Describe current operating state, urgency source, stakeholder requests, dependencies, constraints,
   deadlines, and measurable business facts.
 - Anchor with concrete data (numbers, dates, stakeholders by role designation) from the bible.
-- End with a short "YOUR DATA" block (exactly 4 labelled quantitative anchors).
+- Populate the SEPARATE field your_data with EXACTLY 4 objects, each:
+    label : a short name for the fact (e.g. "Plant availability")
+    value : the concrete quantitative value (e.g. "91.2% vs 94% commitment")
+  your_data is a structured list, NOT text. Do NOT put these anchors, a "YOUR DATA" heading, or any
+  data block inside situation_data -- situation_data is PURE PROSE only. The 4 anchors are the
+  measurable facts this role owns; keep them factual, no interpretation.
 - Only observable facts. Do not interpret those facts.
 - Do NOT describe competing priorities, trade-offs, possible approaches, recommended direction,
   or why the decision is difficult. The participant should infer the tension.

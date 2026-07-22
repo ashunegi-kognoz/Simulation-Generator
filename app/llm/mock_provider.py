@@ -33,6 +33,8 @@ from pydantic import BaseModel
 
 from app.config import get_settings
 from app.schemas.content import (
+    CrisisEntry,
+    DataAnchor,
     kv_str,
     kv_int,
     BalanceReport,
@@ -242,9 +244,12 @@ def _common(rng: random.Random) -> CommonData:
                 "Keep key stakeholders aligned",
             )
         ],
-        crisis_data=_prose(
-            rng.randint(1, 10**9), "The crisis just landed and the room must take positions"
-        ),
+        crisis_data=[
+            CrisisEntry(period="Q1 (Apr-Jun)", event="The triggering failure lands and the room must take positions."),
+            CrisisEntry(period="Q2 (Jul-Sep)", event="Pressure builds as the review window and the cost line converge."),
+            CrisisEntry(period="Q3 (Oct-Dec)", event="The board reviews the plan and competing claims contest the same resources."),
+            CrisisEntry(period="Q4 (Jan-Mar)", event="Outcomes are re-measured against the original commitment."),
+        ],
         reflection_board_helping_data="",
         posture_scheme=PostureScheme(
             inferred_category="Strategy",
@@ -346,6 +351,12 @@ class MockLLMProvider:
                     28,
                 ),
                 situation_data=_prose(seed, "Your situation as the operations leader"),
+                your_data=[
+                    DataAnchor(label="Primary metric", value="on plan vs target"),
+                    DataAnchor(label="Budget status", value="within envelope"),
+                    DataAnchor(label="Key deadline", value="this quarter"),
+                    DataAnchor(label="Compliance", value="no exceptions"),
+                ],
             )
         elif schema is ScenarioText:
             parsed = ScenarioText(scenario_data=_prose(seed, "The team scenario brings one enterprise tension"))

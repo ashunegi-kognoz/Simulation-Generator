@@ -98,7 +98,9 @@ def _shared_context(common: CommonData) -> str:
         row_txt = "; ".join(f"{r.item}={r.value}" for r in p.table)
         pri_lines.append(f"- {p.title}" + (f" [{row_txt}]" if row_txt else ""))
     parts.append("SHARED PRIORITIES:\n" + "\n".join(pri_lines))
-    parts.append(f"CRISIS:\n{common.crisis_data}")
+    parts.append(
+        "CRISIS:\n" + "\n".join(f"{c.period}: {c.event}" for c in common.crisis_data)
+    )
     if common.reflection_spec is not None:
         rs = common.reflection_spec
         params = "; ".join(f"{p.name} ({p.definition})" for p in rs.outcome_parameters)
@@ -215,6 +217,7 @@ async def generate_with_audit(
             build = await build_decisions(round_blob, dims, llm, posture_keys, stances)
             rounds[rp.index] = RoundParticipantContent(
                 situation_data=role_sit.situation_data,
+                your_data=role_sit.your_data,
                 decision_board=build.decisions,
                 reports=build.reports,
                 flagged=build.flagged,
